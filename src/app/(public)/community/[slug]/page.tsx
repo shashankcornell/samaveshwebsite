@@ -64,7 +64,7 @@ export default async function ProfilePage({ params }: Props) {
             >
               ← Meet
             </Link>
-            <div style={{ display: "flex", gap: 40, alignItems: "flex-start" }}>
+            <div className="profile-hero-grid" style={{ display: "flex", gap: 40, alignItems: "flex-start" }}>
               <div style={{ position: "relative", width: 120, height: 120, borderRadius: "50%", overflow: "hidden", background: "var(--tint-sand)", flexShrink: 0 }}>
                 {profile.image ? (
                   <Image src={profile.image} alt={profile.name} fill style={{ objectFit: "cover" }} sizes="120px" />

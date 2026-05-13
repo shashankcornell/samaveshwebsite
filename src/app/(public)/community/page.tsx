@@ -1,143 +1,81 @@
 import { prisma } from "@/lib/prisma";
-import Image from "next/image";
-import Link from "next/link";
-import { Reveal } from "@/components/public/Reveal";
+import { MeetPagePublic } from "@/components/public/MeetPagePublic";
+import type { MeetData, MeetSection } from "@/components/admin/MeetPageForm";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Meet" };
 
-const ROLE_ORDER = ["TEAM_MEMBER", "ADVISORY_BOARD", "FELLOW", "PRESENTER", "DISCUSSANT", "ADMIN"];
-const ROLE_LABELS: Record<string, string> = {
-  TEAM_MEMBER: "The Team",
-  ADVISORY_BOARD: "Advisory Board",
-  FELLOW: "Fellows",
-  PRESENTER: "Presenters",
-  DISCUSSANT: "Discussants",
-  ADMIN: "Admin",
-};
+function uid() { return Math.random().toString(36).slice(2, 10); }
+
+const DEFAULT_SECTIONS: MeetSection[] = [
+  {
+    id: uid(), type: "people", title: "The people who keep the calendar.",
+    subtitle: "Programme, editorial, operations and externship — full-time and near-full-time.",
+    sectionNumber: "01 / CORE TEAM", role: "TEAM_MEMBER", displayMode: "core",
+    bgVariant: "default", visible: true, order: 0,
+  },
+  {
+    id: uid(), type: "people", title: "Who decides what we discuss.",
+    subtitle: "Each year, the board reads the open call for ideas and selects 10–12 to present at the summit.",
+    sectionNumber: "02 / ADVISORY BOARD", role: "ADVISORY_BOARD", displayMode: "list",
+    bgVariant: "paper", visible: true, order: 1,
+  },
+  {
+    id: uid(), type: "people", title: "Who shepherds each idea.",
+    subtitle: "Mentors prepare presenters, anchor the discourse on the day, and follow each paper to publication.",
+    sectionNumber: "03 / SECTORAL MENTORS", role: "FELLOW", displayMode: "compact",
+    bgVariant: "default", visible: true, order: 2,
+  },
+  {
+    id: uid(), type: "people", title: "This year's voices.",
+    subtitle: "Researchers, practitioners and policy nerds whose ideas were chosen for the 2025 summit.",
+    sectionNumber: "04 / EXTERNS & PRESENTERS", role: "PRESENTER", displayMode: "dense",
+    bgVariant: "default", visible: true, order: 3,
+  },
+  {
+    id: uid(), type: "people", title: "The room itself.",
+    subtitle: "A sample of the discussants who showed up to at least three discourses this year.",
+    sectionNumber: "06 / DISCUSSANTS", role: "DISCUSSANT", displayMode: "discussants",
+    bgVariant: "default", visible: true, order: 5,
+  },
+  {
+    id: uid(), type: "cta",
+    ctaHeading: "Want to join the room?",
+    ctaBody: "<p>We open externships twice a year, accept new chapter conveners on a rolling basis, and partner with researchers on commissioned briefs. Pick the path that fits.</p>",
+    ctaLabel: "See ways to act", ctaHref: "/act",
+    visible: true, order: 6,
+  },
+];
 
 export default async function CommunityPage() {
-  const profiles = await prisma.profile.findMany({ orderBy: { name: "asc" } });
+  const [profiles, pageConfig] = await Promise.all([
+    prisma.profile.findMany({
+      where: { visible: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.pageConfig.findUnique({ where: { slug: "meet" } }),
+  ]);
 
-  const grouped = ROLE_ORDER.reduce(
-    (acc, role) => {
-      const members = profiles.filter((p) => p.role === role);
-      if (members.length) acc[role] = members;
-      return acc;
-    },
-    {} as Record<string, typeof profiles>
-  );
+  const raw = (pageConfig?.data ?? {}) as Partial<MeetData>;
 
-  return (
-    <div>
-      {/* Header */}
-      <div style={{ background: "var(--tint-sage)", padding: "72px 0 56px" }}>
-        <div className="samavesh-container">
-          <Reveal>
-            <h1 style={{ fontFamily: "var(--serif)", fontSize: 56, fontWeight: 400, color: "var(--ink)", marginBottom: 8 }}>
-              Meet
-            </h1>
-            <p style={{ fontFamily: "var(--serif)", fontSize: 20, color: "var(--ink-soft)", opacity: 0.65 }}>
-              The people behind Samavesh.
-            </p>
-          </Reveal>
-        </div>
-      </div>
+  const data: MeetData = {
+    headingEyebrow: raw.headingEyebrow ?? "THE COMMUNITY",
+    heading: raw.heading ?? "We are not an institution. We are a <em>room.</em>",
+    subtitle: raw.subtitle ?? "",
+    sections: raw.sections?.length
+      ? [...raw.sections].sort((a, b) => a.order - b.order)
+      : DEFAULT_SECTIONS,
+  };
 
-      <div style={{ padding: "72px 0 120px" }}>
-        <div className="samavesh-container">
-          {Object.entries(grouped).map(([role, members]) => (
-            <section key={role} style={{ marginBottom: 72 }}>
-              <Reveal>
-                <h2
-                  style={{
-                    fontFamily: "var(--sans)",
-                    fontSize: 11,
-                    letterSpacing: "0.16em",
-                    textTransform: "uppercase",
-                    color: "var(--ink)",
-                    opacity: 0.4,
-                    marginBottom: 40,
-                    paddingBottom: 16,
-                    borderBottom: "1px solid var(--rule)",
-                  }}
-                >
-                  {ROLE_LABELS[role] ?? role}
-                </h2>
-              </Reveal>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(4, 1fr)",
-                  gap: "48px 40px",
-                }}
-              >
-                {members.map((p, i) => (
-                  <Reveal key={p.id} delay={i * 60}>
-                    <Link href={`/community/${p.slug}`} style={{ display: "block" }}>
-                      <article className="card-lift">
-                        <div
-                          style={{
-                            position: "relative",
-                            width: "100%",
-                            paddingTop: "100%",
-                            overflow: "hidden",
-                            background: "var(--tint-sand)",
-                            marginBottom: 16,
-                          }}
-                        >
-                          {p.image ? (
-                            <Image
-                              src={p.image}
-                              alt={p.name}
-                              fill
-                              sizes="(max-width: 900px) 50vw, 280px"
-                              style={{ objectFit: "cover" }}
-                              className="card-img"
-                            />
-                          ) : (
-                            <div
-                              style={{
-                                position: "absolute",
-                                inset: 0,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                background: "var(--tint-sand)",
-                              }}
-                            >
-                              <span style={{ fontFamily: "var(--serif)", fontSize: 40, color: "var(--ink)", opacity: 0.2 }}>
-                                {p.name[0]}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <h3 style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 400, color: "var(--ink)", margin: "0 0 4px" }}>
-                          {p.name}
-                        </h3>
-                        {p.title && (
-                          <p style={{ fontFamily: "var(--sans)", fontSize: 13, color: "var(--ink)", opacity: 0.5, margin: 0 }}>
-                            {p.title}
-                          </p>
-                        )}
-                      </article>
-                    </Link>
-                  </Reveal>
-                ))}
-              </div>
-            </section>
-          ))}
+  const serialized = profiles.map(p => ({
+    id: p.id,
+    slug: p.slug,
+    name: p.name,
+    title: p.title,
+    role: p.role,
+    image: p.image,
+  }));
 
-          {!profiles.length && (
-            <div style={{ textAlign: "center", padding: "80px 0" }}>
-              <p style={{ fontFamily: "var(--serif)", fontSize: 22, color: "var(--ink)", opacity: 0.4 }}>
-                Community profiles coming soon.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  return <MeetPagePublic data={data} profiles={serialized} />;
 }

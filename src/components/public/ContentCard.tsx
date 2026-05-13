@@ -13,9 +13,22 @@ export interface CardItem {
   thumbnail?: string | null;
   publishedAt?: Date | string | null;
   readingTime?: number | null;
-  contentType: { name: string; slug: string };
+  contentType: { name: string; slug: string; thumbnailRatioW?: number; thumbnailRatioH?: number };
   topics: { name: string; slug: string }[];
   contributors?: { name: string; role: string }[];
+}
+
+const CARD_TINT: Record<string, string> = {
+  article: "var(--tint-sage)",
+  paper: "var(--tint-sage)",
+  "op-ed": "var(--tint-sage)",
+  discourse: "var(--tint-sand)",
+  podcast: "var(--tint-sky)",
+  interview: "var(--tint-sky)",
+};
+
+function getTint(slug: string) {
+  return CARD_TINT[slug] ?? "var(--tint-sage)";
 }
 
 /* ─── Discourse Popup (portal) ─── */
@@ -23,57 +36,54 @@ function DiscoursePopup({ item, onClose }: { item: CardItem; onClose: () => void
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
+    const scrollW = window.innerWidth - document.documentElement.clientWidth;
     document.body.style.overflow = "hidden";
+    if (scrollW > 0) document.body.style.paddingRight = `${scrollW}px`;
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
+      document.body.style.paddingRight = "";
     };
   }, [onClose]);
+
+  const presenter = item.contributors?.find((c) => c.role === "PRESENTER")?.name
+    ?? item.contributors?.[0]?.name;
 
   return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal__close">
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            style={{ fontFamily: "var(--mono)", fontSize: 13, letterSpacing: "0.08em", color: "var(--ink)" }}
-          >
+          <button onClick={onClose} aria-label="Close" style={{ fontFamily: "var(--mono)", fontSize: 13, letterSpacing: "0.08em", color: "var(--ink)" }}>
             close ×
           </button>
         </div>
-        <div style={{ padding: "0 40px 48px" }}>
-          {item.thumbnail && (
-            <div style={{ position: "relative", width: "100%", aspectRatio: "16/7", overflow: "hidden", marginBottom: 32 }}>
+        <div className="modal-inner" style={{ padding: "0 56px 56px", display: "grid", gridTemplateColumns: "minmax(0,310px) 1fr", gap: 56, alignItems: "start" }}>
+          <div className="modal-inner-img image-cinematic-matte" style={{ position: "relative", aspectRatio: "310 / 409", background: "var(--tint-sand)", overflow: "hidden" }}>
+            {item.thumbnail ? (
               <Image src={item.thumbnail} alt={item.title} fill style={{ objectFit: "cover" }} />
-            </div>
-          )}
-          <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16 }}>
-            <span style={{ fontFamily: "var(--sans)", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--accent-blue)" }}>
-              {item.contentType.name}
-            </span>
-            {item.topics.slice(0, 2).map((t) => (
-              <span key={t.slug} style={{ fontFamily: "var(--sans)", fontSize: 12, color: "var(--ink-soft)", opacity: 0.6 }}>
-                {t.name}
-              </span>
-            ))}
+            ) : (
+              <div style={{ position: "absolute", inset: 0, background: "var(--tint-sand)" }} />
+            )}
           </div>
-          <h2 style={{ fontFamily: "var(--serif)", fontSize: 32, fontWeight: 400, lineHeight: 1.3, color: "var(--ink)", marginBottom: 20 }}>
-            {item.title}
-          </h2>
-          {item.excerpt && (
-            <p style={{ fontFamily: "var(--serif)", fontSize: 20, lineHeight: 1.7, color: "var(--ink-soft)", marginBottom: 32 }}>
-              {item.excerpt}
-            </p>
-          )}
-          <Link
-            href={`/blogs/${item.slug}`}
-            className="btn-text"
-            onClick={onClose}
-          >
-            Read full piece
-            <span className="arrow">→</span>
-          </Link>
+          <div>
+            <h2 style={{ fontFamily: "var(--serif)", fontSize: 32, lineHeight: 1.3, fontWeight: 400, margin: 0 }}>
+              {item.title}
+            </h2>
+            {presenter && (
+              <div style={{ fontFamily: "var(--sans)", fontSize: 16, marginTop: 18, color: "var(--ink-soft)" }}>
+                Presented by {presenter}
+              </div>
+            )}
+            {item.excerpt && (
+              <p style={{ fontFamily: "var(--sans)", fontSize: 16, lineHeight: 1.7, marginTop: 24, color: "var(--ink)" }}>
+                {item.excerpt}
+              </p>
+            )}
+            <Link href={`/blogs/${item.slug}`} className="btn-text" onClick={onClose} style={{ marginTop: 24, display: "inline-flex" }}>
+              Read full discourse
+              <span className="arrow">→</span>
+            </Link>
+          </div>
         </div>
       </div>
     </div>,
@@ -81,144 +91,83 @@ function DiscoursePopup({ item, onClose }: { item: CardItem; onClose: () => void
   );
 }
 
-/* ─── Tall card (articles, op-eds) ─── */
-function TallCard({ item }: { item: CardItem }) {
+function CardImageBlock({ item }: { item: CardItem }) {
+  const tint = getTint(item.contentType.slug);
+  const w = item.contentType.thumbnailRatioW ?? 3;
+  const h = item.contentType.thumbnailRatioH ?? 4;
   return (
-    <Link href={`/blogs/${item.slug}`} style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <article style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-        <div style={{ position: "relative", width: "100%", paddingTop: "120%", overflow: "hidden", background: "#e8e4e0" }} className="card-img-wrap">
-          {item.thumbnail ? (
-            <Image
-              src={item.thumbnail}
-              alt={item.title}
-              fill
-              sizes="(max-width: 900px) 100vw, 420px"
-              style={{ objectFit: "cover" }}
-              className="card-img"
-            />
-          ) : (
-            <div style={{ position: "absolute", inset: 0, background: "var(--tint-sand)" }} />
-          )}
-        </div>
-        <div style={{ paddingTop: 20, flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
-          <span style={{ fontFamily: "var(--sans)", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--accent-blue)" }}>
-            {item.contentType.name}
-          </span>
-          <h3 style={{ fontFamily: "var(--serif)", fontSize: 22, fontWeight: 400, lineHeight: 1.35, color: "var(--ink)", margin: 0 }}>
-            {item.title}
-          </h3>
-          {item.topics[0] && (
-            <span style={{ fontFamily: "var(--sans)", fontSize: 12, color: "var(--ink)", opacity: 0.45 }}>
-              {item.topics[0].name}
-            </span>
-          )}
-          <div style={{ marginTop: "auto", paddingTop: 12 }}>
-            {item.publishedAt && (
-              <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--ink)", opacity: 0.35 }}>
-                {formatDate(item.publishedAt)}
-              </span>
-            )}
-          </div>
-        </div>
-      </article>
-    </Link>
+    <div className="image-cinematic-matte" style={{ position: "relative", width: "100%", aspectRatio: `${w} / ${h}`, overflow: "hidden", background: tint }}>
+      {item.thumbnail ? (
+        <Image src={item.thumbnail} alt={item.title} fill sizes="(max-width: 900px) 100vw, 420px" style={{ objectFit: "cover" }} className="card-img" />
+      ) : (
+        <div style={{ position: "absolute", inset: 0, background: tint }} />
+      )}
+    </div>
   );
 }
 
-/* ─── Square card (discourses) ─── */
-function SquareCard({ item }: { item: CardItem }) {
-  const [open, setOpen] = useState(false);
+function CardInner({ item }: { item: CardItem }) {
+  const sector = item.topics[0]?.name;
+  const author = item.contributors?.find((c) => c.role === "AUTHOR")?.name ?? item.contributors?.[0]?.name;
 
   return (
+    <div style={{ padding: "24px 24px 28px" }}>
+      {/* Type · Sector */}
+      <div style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.12em", color: "var(--ink)", opacity: 0.5, textTransform: "uppercase", marginBottom: 10 }}>
+        {item.contentType.name}
+        {sector && <span style={{ margin: "0 6px", opacity: 0.5 }}>·</span>}
+        {sector}
+      </div>
+
+      {/* Thumbnail */}
+      <CardImageBlock item={item} />
+
+      {/* Title */}
+      <div style={{ fontFamily: "var(--serif)", fontSize: 19, lineHeight: 1.4, color: "var(--ink)", marginTop: 16 }}>
+        {item.title}
+      </div>
+
+      {/* Author */}
+      {author && (
+        <div style={{ fontFamily: "var(--sans)", fontSize: 12, color: "var(--ink)", opacity: 0.5, marginTop: 10 }}>
+          {author}
+        </div>
+      )}
+
+      {/* Date */}
+      {item.publishedAt && (
+        <div style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.08em", color: "var(--ink)", opacity: 0.35, marginTop: 6 }}>
+          {formatDate(item.publishedAt)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DiscourseCard({ item }: { item: CardItem }) {
+  const [open, setOpen] = useState(false);
+  return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        style={{ textAlign: "left", width: "100%", cursor: "pointer" }}
-      >
-        <article>
-          <div style={{ position: "relative", width: "100%", paddingTop: "100%", overflow: "hidden", background: "#e8e4e0" }} className="card-img-wrap">
-            {item.thumbnail ? (
-              <Image
-                src={item.thumbnail}
-                alt={item.title}
-                fill
-                sizes="(max-width: 900px) 100vw, 420px"
-                style={{ objectFit: "cover" }}
-                className="card-img"
-              />
-            ) : (
-              <div style={{ position: "absolute", inset: 0, background: "var(--tint-sky)" }} />
-            )}
-          </div>
-          <div style={{ paddingTop: 20, display: "flex", flexDirection: "column", gap: 8 }}>
-            <span style={{ fontFamily: "var(--sans)", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--accent-purple)" }}>
-              {item.contentType.name}
-            </span>
-            <h3 style={{ fontFamily: "var(--serif)", fontSize: 22, fontWeight: 400, lineHeight: 1.35, color: "var(--ink)", margin: 0 }}>
-              {item.title}
-            </h3>
-            {item.topics[0] && (
-              <span style={{ fontFamily: "var(--sans)", fontSize: 12, color: "var(--ink)", opacity: 0.45 }}>
-                {item.topics[0].name}
-              </span>
-            )}
-          </div>
-        </article>
+      <button onClick={() => setOpen(true)} style={{ textAlign: "left", width: "100%", cursor: "pointer" }}>
+        <CardInner item={item} />
       </button>
       {open && <DiscoursePopup item={item} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-/* ─── Wide card (podcasts) — portrait offset ─── */
-function PodcastCard({ item }: { item: CardItem }) {
+/* ─── ContentCard: single entry point ─── */
+export function ContentCard({ item }: { item: CardItem; variant?: string }) {
+  const isDiscourse = item.contentType.slug === "discourse";
   return (
-    <Link href={`/blogs/${item.slug}`} style={{ display: "block" }}>
-      <article>
-        <div style={{ position: "relative", width: "100%", paddingTop: "133%", overflow: "hidden", background: "#e8e4e0" }} className="card-img-wrap">
-          {item.thumbnail ? (
-            <Image
-              src={item.thumbnail}
-              alt={item.title}
-              fill
-              sizes="(max-width: 900px) 100vw, 420px"
-              style={{ objectFit: "cover" }}
-              className="card-img"
-            />
-          ) : (
-            <div style={{ position: "absolute", inset: 0, background: "var(--tint-sage)" }} />
-          )}
-        </div>
-        <div style={{ paddingTop: 20, display: "flex", flexDirection: "column", gap: 8 }}>
-          <span style={{ fontFamily: "var(--sans)", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink)", opacity: 0.4 }}>
-            Podcast
-          </span>
-          <h3 style={{ fontFamily: "var(--serif)", fontSize: 22, fontWeight: 400, lineHeight: 1.35, color: "var(--ink)", margin: 0 }}>
-            {item.title}
-          </h3>
-        </div>
-      </article>
-    </Link>
-  );
-}
-
-/* ─── ContentCard: routes to the right variant ─── */
-export function ContentCard({ item, variant }: { item: CardItem; variant?: "tall" | "square" | "podcast" }) {
-  const v = variant ?? (
-    item.contentType.slug === "discourse" ? "square"
-    : item.contentType.slug === "podcast" ? "podcast"
-    : "tall"
-  );
-
-  const Wrap = ({ children }: { children: React.ReactNode }) => (
-    <div className="card-lift" style={{ cursor: "pointer" }}>
-      {children}
+    <div className="card-lift">
+      {isDiscourse ? (
+        <DiscourseCard item={item} />
+      ) : (
+        <Link href={`/blogs/${item.slug}`} style={{ display: "block" }}>
+          <CardInner item={item} />
+        </Link>
+      )}
     </div>
-  );
-
-  return (
-    <Wrap>
-      {v === "square" ? <SquareCard item={item} /> : v === "podcast" ? <PodcastCard item={item} /> : <TallCard item={item} />}
-    </Wrap>
   );
 }

@@ -1,49 +1,39 @@
-import { BlogCard } from "./BlogCard";
+"use client";
 
-interface ContentItem {
-  id: string;
-  slug: string;
-  title: string;
-  excerpt?: string | null;
-  thumbnail?: string | null;
-  publishedAt?: Date | string | null;
-  readingTime?: number | null;
-  contentType: { name: string; slug: string };
-  topics: { topicTag: { name: string; slug: string } }[];
-}
+import { ContentCard, CardItem } from "./ContentCard";
+import { Reveal } from "./Reveal";
 
 interface ContentGridProps {
-  items: ContentItem[];
-  columns?: 2 | 3 | 4;
+  items: CardItem[];
 }
 
-const GRID_CLASSES = {
-  2: "grid-cols-1 sm:grid-cols-2",
-  3: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
-  4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4",
-};
+export function ContentGrid({ items }: ContentGridProps) {
+  if (!items.length) return null;
 
-export function ContentGrid({ items, columns = 3 }: ContentGridProps) {
-  if (items.length === 0) {
-    return (
-      <div className="py-20 text-center text-stone-400">No content found.</div>
-    );
+  const rows: CardItem[][] = [];
+  for (let i = 0; i < items.length; i += 3) {
+    rows.push(items.slice(i, i + 3));
   }
 
   return (
-    <div className={`grid gap-6 ${GRID_CLASSES[columns]}`}>
-      {items.map((item) => (
-        <BlogCard
-          key={item.id}
-          slug={item.slug}
-          title={item.title}
-          excerpt={item.excerpt}
-          thumbnail={item.thumbnail}
-          publishedAt={item.publishedAt}
-          readingTime={item.readingTime}
-          contentType={item.contentType}
-          topics={item.topics.map((t) => t.topicTag)}
-        />
+    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      {rows.map((row, rowIdx) => (
+        <div
+          key={rowIdx}
+          className="content-grid-row"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: "0 40px",
+            alignItems: "center",
+          }}
+        >
+          {row.map((item, i) => (
+            <Reveal key={item.slug} delay={i * 80}>
+              <ContentCard item={item} />
+            </Reveal>
+          ))}
+        </div>
       ))}
     </div>
   );

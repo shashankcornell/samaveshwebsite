@@ -9,12 +9,15 @@ interface FormData {
   name: string;
   slug: string;
   role: string;
+  customRole: string;
   bio: string;
   image: string;
   title: string;
+  affiliation: string;
   linkedin: string;
   twitter: string;
   website: string;
+  visible: boolean;
 }
 
 interface ProfileEditorFormProps {
@@ -39,19 +42,22 @@ export function ProfileEditorForm({ initialData }: ProfileEditorFormProps) {
     name: initialData?.name ?? "",
     slug: initialData?.slug ?? "",
     role: initialData?.role ?? "TEAM_MEMBER",
+    customRole: initialData?.customRole ?? "",
     bio: initialData?.bio ?? "",
     image: initialData?.image ?? "",
     title: initialData?.title ?? "",
+    affiliation: initialData?.affiliation ?? "",
     linkedin: initialData?.linkedin ?? "",
     twitter: initialData?.twitter ?? "",
     website: initialData?.website ?? "",
+    visible: initialData?.visible ?? true,
   });
 
-  function set(key: keyof FormData, value: string) {
+  function set(key: keyof FormData, value: string | boolean) {
     setForm((f) => {
       const updated = { ...f, [key]: value };
       if (key === "name" && !initialData?.slug) {
-        updated.slug = generateSlug(value);
+        updated.slug = generateSlug(value as string);
       }
       return updated;
     });
@@ -64,9 +70,11 @@ export function ProfileEditorForm({ initialData }: ProfileEditorFormProps) {
 
     const payload = {
       ...form,
+      customRole: form.customRole || null,
       bio: form.bio || null,
       image: form.image || null,
       title: form.title || null,
+      affiliation: form.affiliation || null,
       linkedin: form.linkedin || null,
       twitter: form.twitter || null,
       website: form.website || null,
@@ -124,8 +132,19 @@ export function ProfileEditorForm({ initialData }: ProfileEditorFormProps) {
           </select>
         </div>
         <div>
-          <label className={labelClass}>Title / Affiliation</label>
+          <label className={labelClass}>Custom Role Label</label>
+          <input value={form.customRole} onChange={(e) => set("customRole", e.target.value)} className={inputClass} placeholder="e.g. Guest Contributor" />
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div>
+          <label className={labelClass}>Title / Position</label>
           <input value={form.title} onChange={(e) => set("title", e.target.value)} className={inputClass} placeholder="e.g. Director, Health Policy" />
+        </div>
+        <div>
+          <label className={labelClass}>Affiliation / Organisation</label>
+          <input value={form.affiliation} onChange={(e) => set("affiliation", e.target.value)} className={inputClass} placeholder="e.g. World Bank" />
         </div>
       </div>
 
@@ -134,7 +153,15 @@ export function ProfileEditorForm({ initialData }: ProfileEditorFormProps) {
         <textarea value={form.bio} onChange={(e) => set("bio", e.target.value)} className={inputClass} rows={4} />
       </div>
 
-      <ImageUploader value={form.image} onChange={(url) => set("image", url)} label="Profile Image" />
+      <ImageUploader
+        value={form.image}
+        onChange={(url) => set("image", url)}
+        label="Profile Image"
+        previewRatios={[
+          { label: "Profile photo (1:1)", ratio: 1 },
+          { label: "Team card (3:4)", ratio: 3 / 4 },
+        ]}
+      />
 
       <div className="grid gap-4 md:grid-cols-3">
         {[
@@ -146,13 +173,24 @@ export function ProfileEditorForm({ initialData }: ProfileEditorFormProps) {
             <label className={labelClass}>{placeholder}</label>
             <input
               type="url"
-              value={form[key as keyof FormData]}
+              value={form[key as keyof FormData] as string}
               onChange={(e) => set(key as keyof FormData, e.target.value)}
               className={inputClass}
               placeholder={placeholder}
             />
           </div>
         ))}
+      </div>
+
+      <div className="flex items-center gap-3">
+        <input
+          type="checkbox"
+          id="visible"
+          checked={form.visible}
+          onChange={(e) => set("visible", e.target.checked)}
+          className="h-4 w-4 rounded border-stone-300 accent-stone-900"
+        />
+        <label htmlFor="visible" className="text-sm font-medium text-stone-700">Visible on public pages</label>
       </div>
 
       <div className="flex items-center gap-3 pt-2">

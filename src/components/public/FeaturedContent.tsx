@@ -25,7 +25,7 @@ export function FeaturedContent({
   return (
     <Link href={`/blogs/${slug}`} className="group block">
       <article className="relative overflow-hidden rounded-xl bg-stone-900">
-        <div className="relative aspect-[16/7] w-full">
+        <div className="relative aspect-[16/7] w-full image-cinematic-matte">
           {thumbnail ? (
             <Image
               src={thumbnail}

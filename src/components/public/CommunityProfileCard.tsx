@@ -32,7 +32,7 @@ export function CommunityProfileCard({
   return (
     <div className="flex flex-col items-center text-center">
       <Link href={`/community/${slug}`}>
-        <div className="relative h-24 w-24 overflow-hidden rounded-full bg-stone-100">
+        <div className="relative h-24 w-24 overflow-hidden rounded-full bg-stone-100 image-cinematic-matte">
           {image ? (
             <Image src={image} alt={name} fill className="object-cover" sizes="96px" />
           ) : (

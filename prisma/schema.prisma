@@ -49,39 +49,56 @@ model User {
 }
 
 model Profile {
-  id            String               @id @default(cuid())
-  name          String
-  slug          String               @unique
-  role          ProfileRole
-  bio           String?              @db.Text
-  image         String?
-  title         String?
-  linkedin      String?
-  twitter       String?
-  website       String?
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
-  user          User?
-  contributions ContentContributor[]
+  id              String                   @id @default(cuid())
+  name            String
+  slug            String                   @unique
+  role            ProfileRole
+  customRole      String?
+  bio             String?                  @db.Text
+  image           String?
+  title           String?
+  affiliation     String?
+  linkedin        String?
+  twitter         String?
+  website         String?
+  visible         Boolean                  @default(true)
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  user            User?
+  contributions   ContentContributor[]
+  gazetteMemberships GazetteEditorialMember[]
 
   @@map("profiles")
 }
 
 model ContentType {
-  id      String    @id @default(cuid())
-  name    String    @unique
-  slug    String    @unique
-  content Content[]
+  id             String    @id @default(cuid())
+  name           String    @unique
+  slug           String    @unique
+  description    String?
+  thumbnailRatio String    @default("3:4")
+  thumbnailRatioW Int      @default(3)
+  thumbnailRatioH Int      @default(4)
+  visible        Boolean   @default(true)
+  content        Content[]
 
   @@map("content_types")
 }
 
 model TopicTag {
-  id       String            @id @default(cuid())
-  name     String            @unique
-  slug     String            @unique
-  image    String?
-  contents ContentTopicTag[]
+  id             String            @id @default(cuid())
+  name           String            @unique
+  slug           String            @unique
+  image          String?
+  description    String?           @db.Text
+  longIntro      String?           @db.Text
+  bgColor        String?
+  visible        Boolean           @default(true)
+  featured       Boolean           @default(false)
+  sectorImage    String?
+  seoTitle       String?
+  seoDescription String?
+  contents       ContentTopicTag[]
 
   @@map("topic_tags")
 }
@@ -93,6 +110,9 @@ model Content {
   excerpt        String?              @db.Text
   body           String               @db.Text
   thumbnail      String?
+  imageAlt       String?
+  imageCaption   String?
+  imageCredit    String?
   status         ContentStatus        @default(DRAFT)
   seoTitle       String?
   seoDescription String?
@@ -107,6 +127,8 @@ model Content {
   contentType    ContentType          @relation(fields: [contentTypeId], references: [id])
   topics         ContentTopicTag[]
   contributors   ContentContributor[]
+  gazettes       GazetteArticle[]
+  landingSlots   LandingPageSlot[]
 
   @@index([status, publishedAt(sort: Desc)])
   @@index([contentTypeId])
@@ -132,4 +154,168 @@ model ContentContributor {
 
   @@id([contentId, profileId, role])
   @@map("content_contributors")
+}
+
+// ── Landing Page Config ───────────────────────────────────
+
+model LandingPageConfig {
+  id        String              @id @default(cuid())
+  rowCount  Int                 @default(8)
+  isManual  Boolean             @default(false)
+  updatedAt DateTime            @updatedAt
+  slots     LandingPageSlot[]
+
+  @@map("landing_page_configs")
+}
+
+model LandingPageSlot {
+  id        String            @id @default(cuid())
+  configId  String
+  contentId String
+  order     Int
+  config    LandingPageConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  content   Content           @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@unique([configId, order])
+  @@map("landing_page_slots")
+}
+
+// ── Gazette ──────────────────────────────────────────────
+
+model Gazette {
+  id               String                   @id @default(cuid())
+  name             String
+  slug             String                   @unique
+  volumeNumber     Int?
+  editionName      String?
+  isCurrent        Boolean                  @default(false)
+  publishedAt      DateTime?
+  place            String?
+  subheading       String?
+  description      String?                  @db.Text
+  coverImage       String?
+  coverImageAlt    String?
+  editorNote       String?                  @db.Text
+  status           ContentStatus            @default(DRAFT)
+  seoTitle         String?
+  seoDescription   String?
+  disclaimer       String?                  @db.Text
+  credits          String?                  @db.Text
+  acknowledgements String?                  @db.Text
+  articles         GazetteArticle[]
+  editorialBoard   GazetteEditorialMember[]
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  @@map("gazettes")
+}
+
+model GazetteArticle {
+  gazetteId String
+  contentId String
+  order     Int     @default(0)
+  gazette   Gazette @relation(fields: [gazetteId], references: [id], onDelete: Cascade)
+  content   Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@id([gazetteId, contentId])
+  @@map("gazette_articles")
+}
+
+model GazetteEditorialBoardRole {
+  id      String                   @id @default(cuid())
+  name    String                   @unique
+  order   Int                      @default(0)
+  members GazetteEditorialMember[]
+
+  @@map("gazette_editorial_board_roles")
+}
+
+model GazetteEditorialMember {
+  id        String                     @id @default(cuid())
+  gazetteId String
+  profileId String
+  roleId    String?
+  order     Int                        @default(0)
+  gazette   Gazette                    @relation(fields: [gazetteId], references: [id], onDelete: Cascade)
+  profile   Profile                    @relation(fields: [profileId], references: [id])
+  role      GazetteEditorialBoardRole? @relation(fields: [roleId], references: [id])
+
+  @@map("gazette_editorial_members")
+}
+
+// ── CMS Pages ─────────────────────────────────────────────
+
+model CmsPage {
+  id             String        @id @default(cuid())
+  title          String
+  slug           String        @unique
+  heroHeading    String?
+  heroSubtitle   String?       @db.Text
+  bgColor        String?       @default("#ffffff")
+  textColor      String?       @default("#111111")
+  status         ContentStatus @default(DRAFT)
+  seoTitle       String?
+  seoDescription String?
+  publishedAt    DateTime?
+  sections       PageSection[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@map("cms_pages")
+}
+
+model PageSection {
+  id      String  @id @default(cuid())
+  pageId  String
+  type    String
+  order   Int     @default(0)
+  visible Boolean @default(true)
+  data    Json    @default("{}")
+  page    CmsPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@map("page_sections")
+}
+
+// ── News / Announcements ─────────────────────────────────
+
+enum NewsCategory {
+  POLICY
+  COMMUNITY
+  ANNOUNCEMENT
+  MEDIA
+  EVENT
+  HIRING
+  RESEARCH
+}
+
+model NewsItem {
+  id          String        @id @default(cuid())
+  title       String
+  slug        String        @unique
+  category    NewsCategory  @default(ANNOUNCEMENT)
+  description String?       @db.Text
+  image       String?
+  externalUrl String?
+  sourceName  String?
+  embedType   String?
+  embedUrl    String?
+  embedCode   String?       @db.Text
+  featured    Boolean       @default(false)
+  status      ContentStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([status, publishedAt(sort: Desc)])
+  @@map("news_items")
+}
+
+// ── Site Page Configs (think / meet / act) ───────────────
+model PageConfig {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  data      Json     @default("{}")
+  updatedAt DateTime @updatedAt
+
+  @@map("page_configs")
 }

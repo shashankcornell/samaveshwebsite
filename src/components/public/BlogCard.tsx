@@ -45,7 +45,7 @@ export function BlogCard({
       className={`group flex ${isHorizontal ? "flex-row gap-4" : "flex-col"} overflow-hidden rounded-lg border border-stone-200 bg-white transition hover:shadow-md`}
     >
       <Link href={`/blogs/${slug}`} className={`${isHorizontal ? "w-40 shrink-0" : "w-full"} overflow-hidden`}>
-        <div className={`relative ${aspectClass} w-full overflow-hidden bg-stone-100`}>
+        <div className={`relative ${aspectClass} w-full overflow-hidden bg-stone-100 image-cinematic-matte`}>
           {thumbnail ? (
             <Image
               src={thumbnail}

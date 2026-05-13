@@ -2,11 +2,192 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Reveal } from "./Reveal";
-import { HomeCard } from "./HomeCard";
 import { formatDate } from "@/lib/utils";
-import type { HomeContentItem } from "@/app/(public)/page";
+import { ContentGrid } from "./ContentGrid";
+import type { CardItem } from "./ContentCard";
+import type { HomeContentItem, GazettePreview, FeaturedBlock } from "@/app/(public)/page";
+
+/* ── YouTube embed (click-to-play) ── */
+function youtubeId(url: string): string | null {
+  const m = url.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+function FeaturedYouTube({ url }: { url: string }) {
+  const [play, setPlay] = useState(false);
+  const id = youtubeId(url);
+  if (!id) return null;
+  return (
+    <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", background: "#000", overflow: "hidden" }}>
+      {play ? (
+        <iframe src={`https://www.youtube.com/embed/${id}?autoplay=1&rel=0`} title="Video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }} />
+      ) : (
+        <button onClick={() => setPlay(true)} aria-label="Play video"
+          style={{ position: "absolute", inset: 0, width: "100%", cursor: "pointer", background: "transparent", border: 0, padding: 0 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`https://img.youtube.com/vi/${id}/hqdefault.jpg`} alt="Video thumbnail" style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.75)" }} />
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(255,0,0,0.9)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 28px rgba(0,0,0,0.4)" }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="#fff" style={{ marginLeft: 4 }}><path d="M5 3l14 9-14 9V3z" /></svg>
+            </div>
+          </div>
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ── Twitter embed ── */
+function FeaturedTwitter({ url }: { url: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const win = window as Window & { twttr?: { widgets: { load: (el: HTMLElement | null) => void } } };
+    const load = () => win.twttr?.widgets.load(ref.current);
+    if (win.twttr) { load(); return; }
+    const s = document.createElement("script");
+    s.src = "https://platform.twitter.com/widgets.js";
+    s.async = true;
+    s.onload = load;
+    document.body.appendChild(s);
+  }, [url]);
+  return (
+    <div ref={ref}>
+      <blockquote className="twitter-tweet" data-dnt="true"><a href={url}>View on X</a></blockquote>
+    </div>
+  );
+}
+
+/* ── Instagram embed ── */
+function FeaturedInstagram({ url }: { url: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const win = window as Window & { instgrm?: { Embeds: { process: () => void } } };
+    const load = () => win.instgrm?.Embeds?.process();
+    if (win.instgrm) { load(); return; }
+    const s = document.createElement("script");
+    s.src = "https://www.instagram.com/embed.js";
+    s.async = true;
+    s.onload = load;
+    document.body.appendChild(s);
+  }, [url]);
+  return (
+    <div ref={ref} style={{ overflowX: "hidden" }}>
+      <blockquote className="instagram-media" data-instgrm-permalink={url} data-instgrm-version="14" style={{ maxWidth: "100%", width: "100%", minWidth: 0 }}>
+        <a href={url} target="_blank" rel="noopener noreferrer">View on Instagram</a>
+      </blockquote>
+    </div>
+  );
+}
+
+/* ── Featured media block (left side) ── */
+function FeaturedMedia({ block }: { block: FeaturedBlock }) {
+  const hasEmbed = !!block.embedType;
+
+  if (block.embedType === "youtube" && block.embedUrl) {
+    return <FeaturedYouTube url={block.embedUrl} />;
+  }
+  if (block.embedType === "twitter" && block.embedUrl) {
+    return <FeaturedTwitter url={block.embedUrl} />;
+  }
+  if (block.embedType === "instagram" && block.embedUrl) {
+    return <FeaturedInstagram url={block.embedUrl} />;
+  }
+  if (block.embedType === "custom" && block.embedCode) {
+    return <div style={{ width: "100%", overflowX: "hidden" }} dangerouslySetInnerHTML={{ __html: block.embedCode }} />;
+  }
+
+  // Image or tint placeholder
+  return (
+    <div className="card-lift image-cinematic-matte" style={{ position: "relative", aspectRatio: hasEmbed ? "16 / 9" : "16 / 11", overflow: "hidden", background: "var(--tint-sand)" }}>
+      {block.thumbnail ? (
+        <Image src={block.thumbnail} alt={block.title} fill priority style={{ objectFit: "cover" }} className="card-img" sizes="50vw" />
+      ) : (
+        <div style={{ position: "absolute", inset: 0, background: "var(--tint-sand)" }} />
+      )}
+    </div>
+  );
+}
+
+/* ── Full featured section ── */
+function FeaturedSection({ block }: { block: FeaturedBlock }) {
+  const categoryLabel = block.type === "content"
+    ? [block.topicName, block.contentTypeName].filter(Boolean).join(" · ")
+    : block.category ?? "";
+
+  const ctaHref = block.ctaUrl;
+  const isExternal = ctaHref?.startsWith("http");
+
+  const textRight = (
+    <div style={{ paddingTop: 8 }}>
+      {categoryLabel && (
+        <div style={{ fontFamily: "var(--mono)", fontSize: 12, letterSpacing: "0.12em", color: "var(--ink-soft)", marginBottom: 18, textTransform: "uppercase" }}>
+          {categoryLabel}
+        </div>
+      )}
+      <h2 style={{ fontFamily: "var(--serif)", fontSize: 56, lineHeight: 1.08, fontWeight: 400, margin: 0, letterSpacing: "-0.01em" }}>
+        {block.title}
+      </h2>
+      {block.description && (
+        <p style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 22, lineHeight: 1.5, marginTop: 28, color: "var(--ink)" }}>
+          {block.description}
+        </p>
+      )}
+      {block.type === "content" && (
+        <div style={{ marginTop: 24, fontFamily: "var(--mono)", fontSize: 12, letterSpacing: "0.04em", color: "var(--ink-soft)" }}>
+          {block.contributorName?.toUpperCase() ?? ""}
+          {block.contributorName && block.readingTime ? " · " : ""}
+          {block.readingTime ? `${block.readingTime} MIN READ` : ""}
+        </div>
+      )}
+      {block.ctaEnabled && ctaHref && (
+        <div style={{ marginTop: 36 }}>
+          {isExternal ? (
+            <a href={ctaHref} target="_blank" rel="noopener noreferrer" className="btn-text" style={{ display: "inline-flex" }}>
+              <span>{block.ctaLabel}</span>
+              <span className="arrow">→</span>
+            </a>
+          ) : (
+            <Link href={ctaHref} className="btn-text" style={{ display: "inline-flex" }}>
+              <span>{block.ctaLabel}</span>
+              <span className="arrow">→</span>
+            </Link>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <section style={{ background: "var(--paper)", paddingTop: 96, paddingBottom: 96, borderTop: "1px solid var(--rule)", borderBottom: "1px solid var(--rule)" }}>
+      <div className="samavesh-container">
+        <Reveal>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 48, paddingBottom: 16, borderBottom: "1px solid var(--ink)" }}>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 13, letterSpacing: "0.16em", color: "var(--ink)" }}>
+              FEATURED · THIS WEEK
+            </div>
+            {block.publishedAt && (
+              <div style={{ fontFamily: "var(--mono)", fontSize: 12, letterSpacing: "0.12em", color: "var(--ink-soft)" }}>
+                {formatDate(block.publishedAt).toUpperCase()}
+              </div>
+            )}
+          </div>
+        </Reveal>
+
+        <div className="featured-cols" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.05fr) minmax(0, 1fr)", gap: 72, alignItems: "start" }}>
+          <Reveal>
+            <FeaturedMedia block={block} />
+          </Reveal>
+          <Reveal delay={100}>
+            {textRight}
+          </Reveal>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 const FALLBACK_IMAGES = [
   "/topic-health.jpg",
@@ -25,219 +206,140 @@ interface Topic {
 }
 
 interface HomeClientProps {
-  featured: HomeContentItem | null;
+  featured: FeaturedBlock | null;
   gridContent: HomeContentItem[];
   topics: Topic[];
+  gazette: GazettePreview;
 }
 
-/* ── Sticky navbar (homepage-only, appears after scroll) ── */
-function HomeStickyNav({ visible }: { visible: boolean }) {
-  return (
-    <header
-      aria-hidden={!visible}
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 200,
-        background: "rgba(255,255,255,0.95)",
-        backdropFilter: "saturate(180%) blur(12px)",
-        borderBottom: "1px solid rgba(17,17,17,0.07)",
-        padding: "12px 0",
-        opacity: visible ? 1 : 0,
-        pointerEvents: visible ? "auto" : "none",
-        transition: "opacity 260ms ease",
-      }}
-    >
-      <div
-        className="samavesh-container"
-        style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
-      >
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Image
-            src="/monogram.png"
-            alt="Samavesh"
-            width={36}
-            height={36}
-            style={{ objectFit: "contain" }}
-          />
-          <span style={{ fontFamily: "var(--sans)", fontSize: 17, color: "var(--ink)" }}>
-            Samavesh
-          </span>
-        </Link>
-        <nav style={{ display: "flex", alignItems: "center", gap: 48 }}>
-          {[
-            { label: "Think", href: "/blogs" },
-            { label: "Meet", href: "/community" },
-            { label: "Act", href: "/act" },
-          ].map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="underline-track"
-              style={{
-                fontFamily: "var(--sans)",
-                fontSize: 16,
-                color: "var(--ink)",
-                paddingBottom: 4,
-              }}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </div>
-    </header>
-  );
-}
-
-export function HomeClient({ featured, gridContent, topics }: HomeClientProps) {
-  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
-  const [stickyVisible, setStickyVisible] = useState(false);
+export function HomeClient({ featured, gridContent, topics, gazette }: HomeClientProps) {
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setStickyVisible(window.scrollY > window.innerHeight * 0.82);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+    if (topics.length === 0 || isHovered) return;
+    const t = setInterval(() => setActiveIdx((i) => (i + 1) % topics.length), 7000);
+    return () => clearInterval(t);
+  }, [topics.length, isHovered]);
 
-  const navItems = [
-    { label: "Think", href: "/blogs" },
-    { label: "Meet", href: "/community" },
-    { label: "Act", href: "/act" },
+  const cardItems: CardItem[] = gridContent.map((item) => ({
+    slug: item.slug,
+    title: item.title,
+    excerpt: item.excerpt,
+    thumbnail: item.thumbnail,
+    publishedAt: item.publishedAt,
+    readingTime: item.readingTime,
+    contentType: item.contentType,
+    topics: item.topics,
+    contributors: item.contributors,
+  }));
+
+  const topicList = topics.length > 0 ? topics : [
+    { id: "h", slug: "health", name: "Health", count: 0, image: null },
+    { id: "e", slug: "education", name: "Education", count: 0, image: null },
+    { id: "u", slug: "urbanisation", name: "Urbanisation", count: 0, image: null },
+    { id: "t", slug: "technology", name: "Technology", count: 0, image: null },
+    { id: "s", slug: "national-security", name: "National Security", count: 0, image: null },
   ];
 
   return (
     <>
-      <HomeStickyNav visible={stickyVisible} />
-
       {/* ── Hero ── */}
-      <section className="hero-section">
-        {/* Left panel: pale blue */}
-        <div className="hero-left">
-          {/* Top row: logo + mobile nav */}
-          <div className="hero-top-row">
-            <Link href="/" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <Image
-                src="/monogram.png"
-                alt="Samavesh"
-                width={48}
-                height={48}
-                style={{ objectFit: "contain" }}
-                priority
-              />
-              <span className="hero-wordmark">Samavesh</span>
-            </Link>
-            {/* Mobile-only nav */}
-            <nav className="hero-mobile-nav" aria-label="Site navigation">
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="underline-track"
-                  style={{ fontFamily: "var(--sans)", fontSize: 15, color: "var(--ink)", paddingBottom: 3 }}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          </div>
+      <section style={{ position: "relative", overflow: "hidden" }}>
+        {/* Two-tone absolute background */}
+        <div aria-hidden="true" style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: "1fr 1fr", zIndex: 0 }}>
+          <div style={{ background: "var(--hero-blue)" }} />
+          <div style={{ background: "var(--hero-cream)" }} />
+        </div>
 
-          {/* Center: intro + topic list + CTA */}
-          <div className="hero-content">
-            <p className="hero-intro">Policy discussions on...</p>
+        <div
+          className="samavesh-container hero-grid"
+          style={{
+            position: "relative", zIndex: 1,
+            minHeight: 800,
+            paddingTop: 56, paddingBottom: 0,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 60,
+            alignItems: "start",
+          }}
+        >
+          {/* Left column */}
+          <div style={{ paddingRight: 40 }}>
+            <div style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 21, color: "var(--ink)", marginBottom: 38 }}>
+              Decoding policies on…
+            </div>
 
-            <nav aria-label="Topics">
-              {topics.map((topic, i) => (
-                <Link
-                  key={topic.slug}
-                  href={`/topics/${topic.slug}`}
-                  className="hero-topic"
-                  onMouseEnter={() => setHoverIdx(i)}
-                  onMouseLeave={() => setHoverIdx(null)}
-                  onFocus={() => setHoverIdx(i)}
-                  onBlur={() => setHoverIdx(null)}
-                >
-                  {topic.name}
-                </Link>
-              ))}
+            <ol
+              style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 24 }}
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+            >
+              {topicList.map((topic, i) => {
+                const active = i === activeIdx;
+                return (
+                  <li key={topic.slug}>
+                    <Link
+                      href={`/topics/${topic.slug}`}
+                      onMouseEnter={() => setActiveIdx(i)}
+                      onClick={() => setActiveIdx(i)}
+                      style={{
+                        fontFamily: "var(--serif)",
+                        fontSize: 50,
+                        lineHeight: 1.15,
+                        color: active ? "var(--ink)" : "rgba(17,17,17,0.45)",
+                        textAlign: "left",
+                        transition: "color 350ms ease",
+                        position: "relative",
+                        display: "inline-block",
+                        padding: 0,
+                      } as React.CSSProperties}
+                      className="hero-topic-size"
+                    >
+                      <span style={{ position: "relative", display: "inline-block" }}>
+                        {topic.name}
+                        <span aria-hidden="true" style={{
+                          position: "absolute", left: 0, right: 0, bottom: -4, height: 2,
+                          background: "var(--accent-blue)",
+                          transformOrigin: "left center",
+                          transform: active ? "scaleX(1)" : "scaleX(0)",
+                          transition: "transform 600ms cubic-bezier(.7,0,.3,1)",
+                        }} />
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ol>
 
-              {/* Fallback if no topics from DB */}
-              {topics.length === 0 &&
-                ["Health", "Education", "Urbanisation", "Technology", "National Security"].map(
-                  (name, i) => (
-                    <span key={i} className="hero-topic hero-topic--static">
-                      {name}
-                    </span>
-                  )
-                )}
-            </nav>
-
-            <div style={{ marginTop: 40 }}>
-              <Link href="/topics" className="btn-circle-cta">
-                <span className="btn-circle-cta__text">More topics</span>
-                <span className="btn-circle-cta__circle" aria-hidden="true">→</span>
+            <div style={{ marginTop: 64 }}>
+              <Link href="/topics" className="btn-text">
+                <span>More topics</span>
+                <span className="arrow">→</span>
               </Link>
             </div>
           </div>
-        </div>
 
-        {/* Right panel: warm cream + nav + image — hidden on mobile */}
-        <div className="hero-right">
-          {/* Desktop nav top-right */}
-          <nav
-            className="hero-right-nav"
-            aria-label="Site navigation"
-          >
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="underline-track"
-                style={{
-                  fontFamily: "var(--sans)",
-                  fontSize: 18,
-                  color: "var(--ink)",
-                  paddingBottom: 4,
-                }}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+          {/* Right column */}
+          <div className="hero-right-panel" style={{ display: "flex", flexDirection: "column" }}>
 
-          {/* Topic image — cross-fades on hover */}
-          <div className="hero-image-wrap">
-            <div
-              style={{
-                position: "relative",
-                width: "min(380px, 80%)",
-                aspectRatio: "3 / 4",
-              }}
-            >
+            {/* Cross-fade topic image */}
+            <div style={{
+              width: "100%", maxWidth: 420, aspectRatio: "404 / 608",
+              position: "relative", marginLeft: "auto",
+              background: "rgba(217,217,217,0.6)",
+              overflow: "hidden",
+            }}>
               {FALLBACK_IMAGES.map((fallback, i) => {
-                const src = topics[i]?.image ?? fallback;
+                const src = topicList[i]?.image ?? fallback;
                 return (
-                  <div
-                    key={i}
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      opacity: i === (hoverIdx ?? 0) ? 1 : 0,
-                      transition: "opacity 480ms ease",
-                      willChange: "opacity",
-                    }}
-                  >
-                    <Image
-                      src={src}
-                      alt={topics[i]?.name ?? "Topic"}
-                      fill
-                      priority={i === 0}
-                      style={{ objectFit: "cover" }}
-                      sizes="40vw"
-                    />
+                  <div key={i} style={{
+                    position: "absolute", inset: 0,
+                    opacity: i === activeIdx ? 1 : 0,
+                    transform: i === activeIdx ? "scale(1)" : "scale(1.04)",
+                    transition: isHovered ? "none" : "opacity 700ms ease, transform 1200ms cubic-bezier(.2,.7,.2,1)",
+                  }}>
+                    <Image src={src} alt={topicList[i]?.name ?? "Topic"} fill priority={i === 0} style={{ objectFit: "cover" }} sizes="40vw" />
                   </div>
                 );
               })}
@@ -247,209 +349,98 @@ export function HomeClient({ featured, gridContent, topics }: HomeClientProps) {
       </section>
 
       {/* ── Featured ── */}
-      {featured && (
-        <section style={{ background: "var(--paper)", padding: "72px 0 56px" }}>
-          <div className="samavesh-container">
-            <Reveal>
-              <p
-                style={{
-                  fontFamily: "var(--sans)",
-                  fontSize: 11,
-                  letterSpacing: "0.16em",
-                  textTransform: "uppercase",
-                  color: "var(--ink)",
-                  opacity: 0.4,
-                  marginBottom: 36,
-                }}
-              >
-                Featured
-              </p>
-            </Reveal>
-            <Link href={`/blogs/${featured.slug}`} style={{ display: "block" }}>
-              <article className="featured-grid card-lift">
-                <div
-                  style={{
-                    position: "relative",
-                    paddingTop: "66%",
-                    overflow: "hidden",
-                    background: "var(--tint-sand)",
-                  }}
-                >
-                  {featured.thumbnail ? (
-                    <Image
-                      src={featured.thumbnail}
-                      alt={featured.title}
-                      fill
-                      priority
-                      style={{ objectFit: "cover" }}
-                      className="card-img"
-                      sizes="50vw"
-                    />
-                  ) : (
-                    <div
-                      style={{ position: "absolute", inset: 0, background: "var(--tint-sand)" }}
-                    />
-                  )}
-                </div>
-                <div>
-                  <Reveal>
-                    <span
-                      style={{
-                        fontFamily: "var(--sans)",
-                        fontSize: 11,
-                        letterSpacing: "0.12em",
-                        textTransform: "uppercase",
-                        color: "var(--accent-blue)",
-                        marginBottom: 16,
-                        display: "block",
-                      }}
-                    >
-                      {featured.contentType.name}
-                    </span>
-                    <h2
-                      style={{
-                        fontFamily: "var(--serif)",
-                        fontSize: "clamp(26px, 3vw, 40px)",
-                        fontWeight: 400,
-                        lineHeight: 1.25,
-                        color: "var(--ink)",
-                        margin: "0 0 20px",
-                      }}
-                    >
-                      {featured.title}
-                    </h2>
-                    {featured.excerpt && (
-                      <p
-                        style={{
-                          fontFamily: "var(--serif)",
-                          fontSize: 18,
-                          lineHeight: 1.65,
-                          color: "var(--ink-soft)",
-                          opacity: 0.75,
-                          marginBottom: 24,
-                        }}
-                      >
-                        {featured.excerpt}
-                      </p>
-                    )}
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 16,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      {featured.topics.slice(0, 2).map((t) => (
-                        <span
-                          key={t.slug}
-                          style={{
-                            fontFamily: "var(--sans)",
-                            fontSize: 12,
-                            color: "var(--ink)",
-                            opacity: 0.45,
-                          }}
-                        >
-                          {t.name}
-                        </span>
-                      ))}
-                      {featured.publishedAt && (
-                        <span
-                          style={{
-                            fontFamily: "var(--mono)",
-                            fontSize: 12,
-                            color: "var(--ink)",
-                            opacity: 0.3,
-                          }}
-                        >
-                          {formatDate(featured.publishedAt)}
-                        </span>
-                      )}
-                    </div>
-                  </Reveal>
-                </div>
-              </article>
-            </Link>
-          </div>
-        </section>
-      )}
+      {featured && <FeaturedSection block={featured} />}
 
-      {/* ── Latest content grid ── */}
-      {gridContent.length > 0 && (
-        <section style={{ padding: "56px 0 112px" }}>
+      {/* ── Gazette Teaser ── */}
+      {gazette && (
+        <section style={{ background: "var(--hero-cream)", paddingTop: 110, paddingBottom: 110, borderBottom: "1px solid var(--ink)" }}>
           <div className="samavesh-container">
-            <Reveal>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "baseline",
-                  justifyContent: "space-between",
-                  marginBottom: 48,
-                }}
-              >
-                <p
-                  style={{
-                    fontFamily: "var(--sans)",
-                    fontSize: 11,
-                    letterSpacing: "0.16em",
-                    textTransform: "uppercase",
-                    color: "var(--ink)",
-                    opacity: 0.4,
-                    margin: 0,
-                  }}
-                >
-                  Latest
-                </p>
-                <Link href="/blogs" className="btn-text" style={{ fontSize: 15 }}>
-                  View all
-                  <span className="arrow" style={{ width: 28, height: 28 }}>→</span>
-                </Link>
-              </div>
-            </Reveal>
-            <div className="homepage-grid">
-              {gridContent.map((item, i) => (
-                <Reveal key={item.slug} delay={Math.min(i % 3, 2) * 80}>
-                  <HomeCard item={item} />
+            <div className="gz-teaser-cols" style={{ display: "grid", gridTemplateColumns: "minmax(0, 0.85fr) minmax(0, 1.15fr)", gap: 96, alignItems: "start" }}>
+              <Reveal>
+                <div>
+                  <div style={{ fontFamily: "var(--mono)", fontSize: 12, letterSpacing: "0.18em", color: "var(--ink-soft)", marginBottom: 20 }}>
+                    FROM THE GAZZETTE
+                  </div>
+                  {(gazette.volumeNumber || gazette.publishedAt) && (
+                    <div style={{ fontFamily: "var(--mono)", fontSize: 13, letterSpacing: "0.12em", color: "var(--ink)", marginBottom: 36 }}>
+                      {gazette.volumeNumber ? `VOLUME ${gazette.volumeNumber}` : ""}
+                      {gazette.volumeNumber && gazette.publishedAt ? " · " : ""}
+                      {gazette.publishedAt ? new Date(gazette.publishedAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }).toUpperCase() : ""}
+                    </div>
+                  )}
+                  <h2 style={{ fontFamily: "var(--serif)", fontSize: 76, lineHeight: 0.98, fontWeight: 400, margin: 0, letterSpacing: "-0.02em" }}>
+                    The Gazzette.
+                  </h2>
+                  <p style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 22, lineHeight: 1.55, maxWidth: 460, marginTop: 32, color: "var(--ink)" }}>
+                    {gazette.description || "Our annual journal — twelve discourse papers, drawn from a year of presentations and moderated debate at the Samavesh Summit, edited into a single volume for the public record."}
+                  </p>
+                  <div style={{ marginTop: 40 }}>
+                    <Link href="/gazette" className="btn-text">
+                      <span>Open the journal</span>
+                      <span className="arrow">→</span>
+                    </Link>
+                  </div>
+                </div>
+              </Reveal>
+              {gazette.articles.length > 0 && (
+                <Reveal delay={120}>
+                  <div>
+                    <div style={{ fontFamily: "var(--mono)", fontSize: 12, letterSpacing: "0.12em", color: "var(--ink-soft)", marginBottom: 14, paddingBottom: 14, borderBottom: "1px solid var(--ink)" }}>
+                      IN THIS ISSUE — A SELECTION
+                    </div>
+                    <ol className="gz-list" style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column" }}>
+                      {gazette.articles.map((a, i) => (
+                        <li key={i} className="gz-reveal">
+                          <Link href="/gazette" className="gz-row" style={{ gridTemplateColumns: "100px 1fr", gap: 24, padding: "26px 0" }}>
+                            <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--ink-soft)" }}>
+                              <div style={{ marginBottom: 4 }}>{String(i + 1).padStart(2, "0")}</div>
+                              <div style={{ color: "var(--ink)" }}>{a.topic}</div>
+                            </div>
+                            <div>
+                              <div style={{ fontFamily: "var(--serif)", fontSize: 22, lineHeight: 1.32 }}>{a.title}</div>
+                              <div style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-soft)", marginTop: 12, letterSpacing: "0.04em" }}>
+                                {a.presenter && <span>{a.presenter.toUpperCase()}</span>}
+                                {a.presenter && a.moderator && <span style={{ margin: "0 8px" }}>·</span>}
+                                {a.moderator && <span>{a.moderator.toUpperCase()}</span>}
+                                {a.moderator && a.editor && <span style={{ margin: "0 8px" }}>·</span>}
+                                {a.editor && <span>{a.editor.toUpperCase()}</span>}
+                              </div>
+                            </div>
+                          </Link>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
                 </Reveal>
-              ))}
+              )}
             </div>
           </div>
         </section>
       )}
 
-      {/* Empty state */}
+      {/* ── Latest from across topics ── */}
+      {gridContent.length > 0 && (
+        <section className="samavesh-container" style={{ paddingTop: 96, paddingBottom: 80 }}>
+          <Reveal>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 40, paddingBottom: 16, borderBottom: "1px solid var(--ink)" }}>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 13, letterSpacing: "0.16em", color: "var(--ink)" }}>
+                LATEST FROM ACROSS TOPICS
+              </div>
+              <Link href="/blogs" className="btn-text">
+                <span>Browse all</span>
+                <span className="arrow">→</span>
+              </Link>
+            </div>
+          </Reveal>
+          <ContentGrid items={cardItems} />
+        </section>
+      )}
+
+      {/* ── Empty state ── */}
       {!featured && !gridContent.length && (
-        <section
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "160px 24px",
-            textAlign: "center",
-          }}
-        >
-          <h1
-            style={{
-              fontFamily: "var(--serif)",
-              fontSize: 48,
-              fontWeight: 400,
-              color: "var(--ink)",
-              marginBottom: 20,
-            }}
-          >
-            Samavesh
-          </h1>
-          <p
-            style={{
-              fontFamily: "var(--serif)",
-              fontSize: 20,
-              lineHeight: 1.65,
-              color: "var(--ink-soft)",
-              opacity: 0.65,
-              maxWidth: 440,
-            }}
-          >
+        <section style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "160px 24px", textAlign: "center" }}>
+          <h1 style={{ fontFamily: "var(--serif)", fontSize: 48, fontWeight: 400, color: "var(--ink)", marginBottom: 20 }}>Samavesh</h1>
+          <p style={{ fontFamily: "var(--serif)", fontSize: 20, lineHeight: 1.65, color: "var(--ink-soft)", opacity: 0.65, maxWidth: 440 }}>
             An inclusive community for policy discourses. Content coming soon.
           </p>
         </section>

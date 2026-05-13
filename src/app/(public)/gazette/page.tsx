@@ -3,46 +3,113 @@ import { GazetteClient } from "@/components/public/GazetteClient";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Gazzette" };
+export const metadata: Metadata = { title: "The Gazzette — Samavesh" };
 
-export default async function GazettePage() {
-  const gazetteItems = await prisma.content.findMany({
-    where: { status: "PUBLISHED", contentType: { slug: "gazette" } },
-    orderBy: { publishedAt: "desc" },
-    include: {
-      contentType: true,
-      topics: { include: { topicTag: true } },
-      contributors: { include: { profile: true } },
-    },
-  });
+interface Props { searchParams: { edition?: string } }
 
-  const fallback = await prisma.content.findMany({
+export default async function GazettePage({ searchParams }: Props) {
+  // All published editions for the switcher
+  const editions = await prisma.gazette.findMany({
     where: { status: "PUBLISHED" },
     orderBy: { publishedAt: "desc" },
-    take: 20,
-    include: {
-      contentType: true,
-      topics: { include: { topicTag: true } },
-      contributors: { include: { profile: true } },
+    select: {
+      id: true, slug: true, name: true,
+      volumeNumber: true, editionName: true,
+      publishedAt: true, place: true, isCurrent: true, status: true,
     },
   });
 
-  const source = gazetteItems.length ? gazetteItems : fallback;
-
-  const articles = source.map((c) => ({
-    slug: c.slug,
-    title: c.title,
-    excerpt: c.excerpt,
-    thumbnail: c.thumbnail,
-    publishedAt: c.publishedAt?.toISOString() ?? null,
-    readingTime: c.readingTime,
-    contentType: c.contentType,
-    topics: c.topics.map((t) => t.topicTag),
-    contributors: c.contributors.map((ct) => ({
-      role: ct.role,
-      name: ct.profile.name,
-    })),
+  const editionSummaries = editions.map((e) => ({
+    ...e,
+    publishedAt: e.publishedAt?.toISOString() ?? null,
   }));
 
-  return <GazetteClient articles={articles} />;
+  // Which edition to show
+  const currentSlug = searchParams.edition
+    ?? editions.find((e) => e.isCurrent)?.slug
+    ?? editions[0]?.slug
+    ?? null;
+
+  if (!currentSlug) {
+    return (
+      <GazetteClient
+        editions={[]}
+        gazette={null}
+        selectedSlug=""
+      />
+    );
+  }
+
+  const raw = await prisma.gazette.findUnique({
+    where: { slug: currentSlug },
+    include: {
+      articles: {
+        orderBy: { order: "asc" },
+        include: {
+          content: {
+            include: {
+              topics: { include: { topicTag: true }, take: 1 },
+              contributors: { include: { profile: { select: { name: true } } } },
+            },
+          },
+        },
+      },
+      editorialBoard: {
+        orderBy: { order: "asc" },
+        include: {
+          profile: { select: { name: true } },
+          role: true,
+        },
+      },
+    },
+  });
+
+  if (!raw) {
+    return <GazetteClient editions={editionSummaries} gazette={null} selectedSlug={currentSlug} />;
+  }
+
+  const gazette = {
+    id: raw.id,
+    name: raw.name,
+    slug: raw.slug,
+    volumeNumber: raw.volumeNumber,
+    editionName: raw.editionName,
+    publishedAt: raw.publishedAt?.toISOString() ?? null,
+    place: raw.place,
+    isCurrent: raw.isCurrent,
+    subheading: raw.subheading,
+    description: raw.description,
+    editorNote: raw.editorNote,
+    disclaimer: raw.disclaimer,
+    credits: raw.credits,
+    acknowledgements: raw.acknowledgements,
+    articles: raw.articles.map((a) => {
+      const contribs = a.content.contributors;
+      const find = (role: string) => contribs.find((c) => c.role === role)?.profile.name ?? null;
+      return {
+        contentId: a.contentId,
+        slug: a.content.slug,
+        title: a.content.title,
+        order: a.order,
+        topic: a.content.topics[0]?.topicTag.name ?? null,
+        presenter: find("PRESENTER"),
+        moderator: find("MODERATOR"),
+        editor: find("EDITOR"),
+      };
+    }),
+    editorialBoard: raw.editorialBoard.map((m) => ({
+      id: m.id,
+      name: m.profile.name,
+      roleName: m.role?.name ?? null,
+      roleOrder: m.role?.order ?? 999,
+    })),
+  };
+
+  return (
+    <GazetteClient
+      editions={editionSummaries}
+      gazette={gazette}
+      selectedSlug={currentSlug}
+    />
+  );
 }

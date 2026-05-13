@@ -1,27 +1,32 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { Reveal } from "@/components/public/Reveal";
-import { CardMosaic } from "@/components/public/CardMosaic";
+import { TopicClient } from "@/components/public/TopicClient";
 import type { Metadata } from "next";
 
-interface Props { params: { slug: string } }
+interface Props { params: { slug: string }; searchParams: { type?: string } }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const tag = await prisma.topicTag.findUnique({ where: { slug: params.slug } });
   return { title: tag?.name ?? "Topic" };
 }
 
-export default async function TopicPage({ params }: Props) {
-  const tag = await prisma.topicTag.findUnique({ where: { slug: params.slug } });
+export default async function TopicPage({ params, searchParams }: Props) {
+  const tag = await prisma.topicTag.findUnique({
+    where: { slug: params.slug },
+    select: { id: true, name: true, slug: true, description: true, longIntro: true, sectorImage: true, image: true, bgColor: true },
+  });
   if (!tag) notFound();
 
   const [items, otherTopics] = await Promise.all([
     prisma.content.findMany({
       where: { status: "PUBLISHED", topics: { some: { topicTagId: tag.id } } },
       orderBy: { publishedAt: "desc" },
-      take: 24,
-      include: { contentType: true, topics: { include: { topicTag: true } } },
+      take: 60,
+      include: {
+        contentType: true,
+        topics: { include: { topicTag: true } },
+        contributors: { include: { profile: { select: { name: true } } } },
+      },
     }),
     prisma.topicTag.findMany({
       where: { slug: { not: params.slug } },
@@ -30,6 +35,15 @@ export default async function TopicPage({ params }: Props) {
     }),
   ]);
 
+  // Derive unique content types present in this topic
+  const typeMap = new Map<string, { id: string; name: string; slug: string }>();
+  for (const c of items) {
+    if (!typeMap.has(c.contentType.id)) {
+      typeMap.set(c.contentType.id, { id: c.contentType.id, name: c.contentType.name, slug: c.contentType.slug });
+    }
+  }
+  const contentTypes = Array.from(typeMap.values());
+
   const cards = items.map((c) => ({
     slug: c.slug,
     title: c.title,
@@ -37,83 +51,23 @@ export default async function TopicPage({ params }: Props) {
     thumbnail: c.thumbnail,
     publishedAt: c.publishedAt?.toISOString() ?? null,
     readingTime: c.readingTime,
-    contentType: c.contentType,
+    contentType: {
+      name: c.contentType.name,
+      slug: c.contentType.slug,
+      thumbnailRatioW: c.contentType.thumbnailRatioW,
+      thumbnailRatioH: c.contentType.thumbnailRatioH,
+    },
     topics: c.topics.map((t) => t.topicTag),
+    contributors: c.contributors.map((cc) => ({ name: cc.profile.name, role: cc.role as string })),
   }));
 
   return (
-    <div>
-      {/* Header */}
-      <div style={{ background: "var(--hero-blue)", padding: "72px 0 56px" }}>
-        <div className="samavesh-container">
-          <Reveal>
-            <Link
-              href="/topics"
-              style={{ fontFamily: "var(--mono)", fontSize: 13, color: "var(--ink)", opacity: 0.45, marginBottom: 16, display: "block", letterSpacing: "0.06em" }}
-            >
-              ← Topics
-            </Link>
-            <h1 style={{ fontFamily: "var(--serif)", fontSize: 56, fontWeight: 400, color: "var(--ink)", marginBottom: 8 }}>
-              {tag.name}
-            </h1>
-            <p style={{ fontFamily: "var(--mono)", fontSize: 13, color: "var(--ink)", opacity: 0.4 }}>
-              {items.length} piece{items.length !== 1 ? "s" : ""}
-            </p>
-          </Reveal>
-        </div>
-      </div>
-
-      <div style={{ padding: "64px 0 120px" }}>
-        <div className="samavesh-container">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 72, alignItems: "start" }}>
-            {/* Main content */}
-            <div>
-              {cards.length > 0 ? (
-                <CardMosaic items={cards} />
-              ) : (
-                <div style={{ padding: "60px 0", textAlign: "center" }}>
-                  <p style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 22, color: "var(--ink)", opacity: 0.4 }}>
-                    No content yet in this topic.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Other topics rail */}
-            {otherTopics.length > 0 && (
-              <aside style={{ position: "sticky", top: 100 }}>
-                <p style={{ fontFamily: "var(--sans)", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--ink)", opacity: 0.4, marginBottom: 20 }}>
-                  Other topics
-                </p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                  {otherTopics.map((t) => (
-                    <Link
-                      key={t.id}
-                      href={`/topics/${t.slug}`}
-                      style={{
-                        fontFamily: "var(--serif)",
-                        fontSize: 18,
-                        color: "var(--ink)",
-                        padding: "12px 0",
-                        borderBottom: "1px solid var(--rule)",
-                        display: "block",
-                        transition: "padding-left 250ms ease",
-                      }}
-                      className="other-topic-link"
-                    >
-                      {t.name}
-                    </Link>
-                  ))}
-                </div>
-              </aside>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <style>{`
-        .other-topic-link:hover { padding-left: 8px !important; }
-      `}</style>
-    </div>
+    <TopicClient
+      tag={{ name: tag.name, slug: tag.slug, bannerImage: tag.sectorImage ?? null, bgImage: tag.image ?? null, bgColor: tag.bgColor ?? null, description: tag.description ?? null }}
+      items={cards}
+      contentTypes={contentTypes}
+      otherTopics={otherTopics}
+      activeType={searchParams.type ?? null}
+    />
   );
 }

@@ -1,184 +1,96 @@
-"use client";
+import { prisma } from "@/lib/prisma";
+import { ActPagePublic } from "@/components/public/ActPagePublic";
+import type { ActData, ActTab } from "@/components/admin/ActPageForm";
 
-import { useState } from "react";
-import { Reveal } from "@/components/public/Reveal";
+export const dynamic = "force-dynamic";
 
-const TABS = [
+const DEFAULT_TABS: ActTab[] = [
   {
-    id: "discourse",
-    label: "Discourse Rules",
-    content: (
-      <div>
-        <h2 style={{ fontFamily: "var(--serif)", fontSize: 36, fontWeight: 400, color: "var(--ink)", marginBottom: 24 }}>
-          How we talk
-        </h2>
-        <p style={{ fontFamily: "var(--serif)", fontSize: 20, lineHeight: 1.7, color: "var(--ink-soft)", maxWidth: 640, marginBottom: 20 }}>
-          Samavesh is a space for rigorous, respectful policy discourse. Every voice is welcome;
-          every argument must stand on evidence and reason.
-        </p>
-        <ul style={{ fontFamily: "var(--serif)", fontSize: 19, lineHeight: 1.8, color: "var(--ink-soft)", paddingLeft: 24 }}>
-          {[
-            "Engage with ideas, not identities.",
-            "Cite your sources and be transparent about your assumptions.",
-            "Acknowledge complexity — policy rarely has simple answers.",
-            "Dissent is welcome; personal attacks are not.",
-            "Listen as much as you speak.",
-          ].map((rule) => (
-            <li key={rule} style={{ marginBottom: 12 }}>{rule}</li>
-          ))}
-        </ul>
-      </div>
-    ),
+    key: "Discourse Rules",
+    eyebrow: "WEEKLY ONLINE DISCOURSES",
+    title: "Sit at the table.",
+    italic: "Every Saturday, 7:00 PM IST. Bring a question, leave with a brief.",
+    body: "<p>Discourses are our weekly invite-by-question gatherings. Anyone can RSVP — researchers, practitioners, students, sceptics — but the floor follows ten ground rules drafted by our editorial team to keep the conversation rigorous and inclusive.</p><p>We open with a 12-minute brief from a domain mentor. The next 45 minutes are a structured exchange. We close by drafting a one-page synthesis the editor publishes on Tuesday.</p>",
+    cta: "Read the ten rules",
+    href: "mailto:hello@samavesh.in?subject=Discourse RSVP",
+    sideKind: "list",
+    list: ["Speak from your standpoint, not your seat","Disagree with the argument, never the person","Cite the source you're leaning on","If you bring a critique, bring a question","No anonymous quotes outside the room","Time-box: three minutes per turn","Give the floor before you take it","Specifics over slogans","What would change your mind?","Leave the room better than you found it"],
+    stats: [],
+    timeline: [],
+    schedule: [],
+    roles: [],
   },
   {
-    id: "chapter",
-    label: "Local Chapter",
-    content: (
-      <div>
-        <h2 style={{ fontFamily: "var(--serif)", fontSize: 36, fontWeight: 400, color: "var(--ink)", marginBottom: 24 }}>
-          Start a chapter
-        </h2>
-        <p style={{ fontFamily: "var(--serif)", fontSize: 20, lineHeight: 1.7, color: "var(--ink-soft)", maxWidth: 640, marginBottom: 32 }}>
-          Samavesh chapters bring policy discourse into universities, cities, and communities.
-          If you&rsquo;re passionate about civic engagement and local governance, we&rsquo;d love
-          to support you in starting a chapter.
-        </p>
-        <a
-          href="mailto:hello@samavesh.in?subject=Local Chapter Interest"
-          className="btn-text"
-        >
-          Express interest
-          <span className="arrow">→</span>
-        </a>
-      </div>
-    ),
+    key: "Local Chapter",
+    eyebrow: "START A LOCAL CHAPTER",
+    title: "Build the room where you live.",
+    italic: "Eleven cities so far. We'll help you set up the twelfth.",
+    body: "<p>A Samavesh chapter is a small, self-organising group that meets in person every fortnight. Chapters pick a sector (or three), invite local practitioners, and feed back into the discourse calendar.</p><p>We provide a starter kit, an editorial mentor, and an annual stipend for venue costs. You provide the convening energy and a willingness to keep showing up.</p>",
+    cta: "Apply to convene a chapter",
+    href: "mailto:hello@samavesh.in?subject=Local Chapter Interest",
+    sideKind: "stat-grid",
+    list: [],
+    stats: [{ v: "11", l: "Cities" },{ v: "240+", l: "Members" },{ v: "82", l: "Discourses run" },{ v: "6", l: "Briefs to ministry" }],
+    timeline: [],
+    schedule: [],
+    roles: [],
   },
   {
-    id: "externs",
-    label: "Externs",
-    content: (
-      <div>
-        <h2 style={{ fontFamily: "var(--serif)", fontSize: 36, fontWeight: 400, color: "var(--ink)", marginBottom: 24 }}>
-          Externships
-        </h2>
-        <p style={{ fontFamily: "var(--serif)", fontSize: 20, lineHeight: 1.7, color: "var(--ink-soft)", maxWidth: 640, marginBottom: 20 }}>
-          Our externship programme places young researchers and writers with policy organisations,
-          think tanks, and civil society groups for short-term immersive experiences.
-        </p>
-        <p style={{ fontFamily: "var(--serif)", fontSize: 20, lineHeight: 1.7, color: "var(--ink-soft)", maxWidth: 640, marginBottom: 32 }}>
-          Applications open twice a year. Externs contribute original research and join our
-          community of contributors.
-        </p>
-        <a
-          href="mailto:hello@samavesh.in?subject=Externship Application"
-          className="btn-text"
-        >
-          Apply
-          <span className="arrow">→</span>
-        </a>
-      </div>
-    ),
+    key: "Externs",
+    eyebrow: "EXTERNSHIP — 12 WEEKS",
+    title: "Work alongside the editorial team.",
+    italic: "For final-year students, early-career researchers, and curious practitioners.",
+    body: "<p>Externs spend twelve weeks embedded with one of our sector mentors. You'll author one paper, co-host two discourses, and contribute editorially to the Tuesday brief.</p><p>We run two cohorts a year — winter (Jan–Mar) and monsoon (Jul–Sep). Stipend, mentor and a desk at our Saket office come included.</p>",
+    cta: "Apply for the next cohort",
+    href: "mailto:hello@samavesh.in?subject=Externship Application",
+    sideKind: "timeline",
+    list: [],
+    stats: [],
+    timeline: [{ w: "W 01–02", t: "Onboarding + literature scan with your mentor" },{ w: "W 03–06", t: "Field interviews & first draft of the paper" },{ w: "W 07–09", t: "Co-host two discourses on your sector" },{ w: "W 10–12", t: "Final draft, peer-review, public release" }],
+    schedule: [],
+    roles: [],
   },
   {
-    id: "summit",
-    label: "Annual Summit",
-    content: (
-      <div>
-        <h2 style={{ fontFamily: "var(--serif)", fontSize: 36, fontWeight: 400, color: "var(--ink)", marginBottom: 24 }}>
-          Annual Summit
-        </h2>
-        <p style={{ fontFamily: "var(--serif)", fontSize: 20, lineHeight: 1.7, color: "var(--ink-soft)", maxWidth: 640, marginBottom: 20 }}>
-          Once a year, the Samavesh community gathers for two days of keynotes, workshops,
-          and structured discourse sessions. The summit brings together policymakers, academics,
-          practitioners, and young changemakers.
-        </p>
-        <p style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 19, lineHeight: 1.7, color: "var(--ink-soft)", opacity: 0.65, maxWidth: 560, marginBottom: 32 }}>
-          Next summit details will be announced soon.
-        </p>
-        <a
-          href="mailto:hello@samavesh.in?subject=Summit Interest"
-          className="btn-text"
-        >
-          Stay updated
-          <span className="arrow">→</span>
-        </a>
-      </div>
-    ),
+    key: "Annual Summit",
+    eyebrow: "SAMAVESH SUMMIT",
+    title: "Once a year, in one room.",
+    italic: "December 2026 · Indian School of Public Policy, New Delhi.",
+    body: "<p>Our annual two-day summit brings together the year's discourse threads, the chapters, the externs and a curated set of policymakers and field practitioners.</p><p>Day one is a closed-door working session — twelve sector tracks running in parallel. Day two is open to the public, with three plenaries and a reading of the year's most-cited briefs.</p>",
+    cta: "See last year's programme",
+    href: "mailto:hello@samavesh.in?subject=Summit Interest",
+    sideKind: "schedule",
+    list: [],
+    stats: [],
+    timeline: [],
+    schedule: [{ day: "Day 1", t: "Closed working sessions", note: "12 parallel sector tracks" },{ day: "Day 2", t: "Public plenaries", note: "Three keynotes, two panels" },{ day: "Evening", t: "The Samavesh reading", note: "Year's most-cited briefs" }],
+    roles: [],
   },
   {
-    id: "work",
-    label: "Work with us",
-    content: (
-      <div>
-        <h2 style={{ fontFamily: "var(--serif)", fontSize: 36, fontWeight: 400, color: "var(--ink)", marginBottom: 24 }}>
-          Work with Samavesh
-        </h2>
-        <p style={{ fontFamily: "var(--serif)", fontSize: 20, lineHeight: 1.7, color: "var(--ink-soft)", maxWidth: 640, marginBottom: 20 }}>
-          We collaborate with researchers, writers, designers, and technologists who share our
-          commitment to evidence-based policy discourse.
-        </p>
-        <p style={{ fontFamily: "var(--serif)", fontSize: 20, lineHeight: 1.7, color: "var(--ink-soft)", maxWidth: 640, marginBottom: 32 }}>
-          Whether you want to contribute writing, help organise events, or partner on a project —
-          we&rsquo;d love to hear from you.
-        </p>
-        <a
-          href="mailto:hello@samavesh.in?subject=Collaboration"
-          className="btn-text"
-        >
-          Get in touch
-          <span className="arrow">→</span>
-        </a>
-      </div>
-    ),
+    key: "Work with us",
+    eyebrow: "WORK WITH US",
+    title: "Roles, partnerships & commissions.",
+    italic: "We hire slowly and partner carefully.",
+    body: "<p>We're hiring across editorial, research and operations. We also commission long-form work from independent researchers, and partner with universities and civil society organisations on specific tracks.</p><p>If none of these fit, write to us anyway — we read every email and reply within a fortnight.</p>",
+    cta: "See open roles",
+    href: "mailto:hello@samavesh.in?subject=Open Roles",
+    sideKind: "roles",
+    list: [],
+    stats: [],
+    timeline: [],
+    schedule: [],
+    roles: [{ r: "Editorial Associate", l: "Full-time · Delhi" },{ r: "Sector Mentor — Climate", l: "Part-time · Remote" },{ r: "Research Lead — Health", l: "Full-time · Delhi" },{ r: "Communications Designer", l: "Contract · Remote" }],
   },
 ];
 
-export default function ActPage() {
-  const [activeTab, setActiveTab] = useState("discourse");
-  const tab = TABS.find((t) => t.id === activeTab) ?? TABS[0];
+export default async function ActPage() {
+  const config = await prisma.pageConfig.findUnique({ where: { slug: "act" } });
+  const raw = (config?.data ?? {}) as Partial<ActData>;
 
-  return (
-    <div>
-      {/* Header */}
-      <div style={{ background: "var(--hero-cream)", padding: "72px 0 48px" }}>
-        <div className="samavesh-container">
-          <Reveal>
-            <h1 style={{ fontFamily: "var(--serif)", fontSize: 56, fontWeight: 400, color: "var(--ink)", marginBottom: 8 }}>
-              Act
-            </h1>
-            <p style={{ fontFamily: "var(--serif)", fontSize: 20, color: "var(--ink-soft)", opacity: 0.65 }}>
-              Participate, organise, and create change.
-            </p>
-          </Reveal>
-        </div>
-      </div>
+  const data: ActData = {
+    heading: raw.heading ?? "Act.",
+    subtitle: raw.subtitle ?? "<p>Five ways to step into the room — pick the one that fits the time you have.</p>",
+    tabs: raw.tabs?.length ? raw.tabs : DEFAULT_TABS,
+  };
 
-      {/* Tab bar */}
-      <div style={{ borderBottom: "1px solid var(--rule)", padding: "20px 0", position: "sticky", top: 72, background: "var(--paper)", zIndex: 50 }}>
-        <div className="samavesh-container">
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setActiveTab(t.id)}
-                className={`pill${t.id === activeTab ? " is-active" : ""}`}
-                style={{ fontSize: 15, padding: "8px 20px" }}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Tab content */}
-      <div style={{ padding: "72px 0 120px" }}>
-        <div className="samavesh-container">
-          <Reveal key={activeTab}>
-            {tab.content}
-          </Reveal>
-        </div>
-      </div>
-    </div>
-  );
+  return <ActPagePublic data={data} />;
 }

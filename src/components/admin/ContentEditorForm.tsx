@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ImageUploader } from "./ImageUploader";
+import { RichTextEditor } from "./RichTextEditor";
 import { generateSlug } from "@/lib/slug";
 
 interface ContentType { id: string; name: string; slug: string }
@@ -16,6 +17,9 @@ interface FormData {
   excerpt: string;
   body: string;
   thumbnail: string;
+  imageAlt: string;
+  imageCaption: string;
+  imageCredit: string;
   contentTypeId: string;
   status: string;
   seoTitle: string;
@@ -52,6 +56,9 @@ export function ContentEditorForm({
     excerpt: initialData?.excerpt ?? "",
     body: initialData?.body ?? "",
     thumbnail: initialData?.thumbnail ?? "",
+    imageAlt: initialData?.imageAlt ?? "",
+    imageCaption: initialData?.imageCaption ?? "",
+    imageCredit: initialData?.imageCredit ?? "",
     contentTypeId: initialData?.contentTypeId ?? "",
     status: initialData?.status ?? "DRAFT",
     seoTitle: initialData?.seoTitle ?? "",
@@ -106,6 +113,9 @@ export function ContentEditorForm({
       ...form,
       excerpt: form.excerpt || null,
       thumbnail: form.thumbnail || null,
+      imageAlt: form.imageAlt || null,
+      imageCaption: form.imageCaption || null,
+      imageCredit: form.imageCredit || null,
       seoTitle: form.seoTitle || null,
       seoDescription: form.seoDescription || null,
       audioUrl: form.audioUrl || null,
@@ -210,22 +220,39 @@ export function ContentEditorForm({
 
       <div>
         <label className={labelClass}>Body *</label>
-        <textarea
-          required
+        <RichTextEditor
           value={form.body}
-          onChange={(e) => set("body", e.target.value)}
-          className={inputClass}
-          rows={16}
-          placeholder="Write your content here… (HTML supported)"
+          onChange={(html) => set("body", html)}
+          placeholder="Write your content here…"
+          minHeight={400}
         />
-        <p className="mt-1 text-xs text-stone-400">HTML is supported. Rich text editor can be added later.</p>
       </div>
 
       <ImageUploader
         value={form.thumbnail}
         onChange={(url) => set("thumbnail", url)}
         label="Thumbnail / Featured Image"
+        previewRatios={[
+          { label: "Content card (16:11)", ratio: 16 / 11 },
+          { label: "Article header (16:9)", ratio: 16 / 9 },
+          { label: "Modal cover (3:4)", ratio: 3 / 4 },
+        ]}
       />
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <div>
+          <label className={labelClass}>Image Alt Text</label>
+          <input value={form.imageAlt} onChange={(e) => set("imageAlt", e.target.value)} className={inputClass} placeholder="Describe the image" />
+        </div>
+        <div>
+          <label className={labelClass}>Image Caption</label>
+          <input value={form.imageCaption} onChange={(e) => set("imageCaption", e.target.value)} className={inputClass} placeholder="Caption below image" />
+        </div>
+        <div>
+          <label className={labelClass}>Image Credit</label>
+          <input value={form.imageCredit} onChange={(e) => set("imageCredit", e.target.value)} className={inputClass} placeholder="Photographer / Source" />
+        </div>
+      </div>
 
       <div>
         <label className={labelClass}>Topic Tags</label>

@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { Reveal } from "@/components/public/Reveal";
-import { formatDate } from "@/lib/utils";
 import { isomorphicDompurify } from "@/lib/sanitize";
 import type { Metadata } from "next";
 
@@ -46,6 +45,7 @@ export default async function BlogPage({ params }: Props) {
     <article>
       {/* Hero */}
       <div
+        className="blog-article-hero"
         style={{
           background: "var(--hero-cream)",
           padding: "72px 0 0",
@@ -69,33 +69,25 @@ export default async function BlogPage({ params }: Props) {
               )}
             </div>
 
-            {/* Type + date */}
-            <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 20 }}>
-              <span style={{ fontFamily: "var(--sans)", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--accent-blue)" }}>
-                {content.contentType.name}
-              </span>
-              {content.publishedAt && (
-                <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--ink)", opacity: 0.35 }}>
-                  {formatDate(content.publishedAt)}
-                </span>
-              )}
-              {content.readingTime && (
-                <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--ink)", opacity: 0.35 }}>
-                  {content.readingTime} min read
-                </span>
-              )}
+            {/* Type + topic + date */}
+            <div style={{ fontFamily: "var(--mono)", fontSize: 14, color: "var(--ink-soft)", letterSpacing: "0.08em", marginBottom: 16 }}>
+              {content.contentType.name.toUpperCase()}
+              {content.topics[0] && ` · ${content.topics[0].topicTag.name.toUpperCase()}`}
+              {content.readingTime && ` · ${content.readingTime} MIN READ`}
             </div>
 
             {/* Title */}
             <h1
+              className="blog-article-title"
               style={{
                 fontFamily: "var(--serif)",
-                fontSize: 52,
+                fontSize: 66,
+                lineHeight: 1.1,
                 fontWeight: 400,
-                lineHeight: 1.2,
                 color: "var(--ink)",
-                maxWidth: 800,
-                margin: "0 0 24px",
+                maxWidth: 1000,
+                margin: 0,
+                letterSpacing: "-0.01em",
               }}
             >
               {content.title}
@@ -152,7 +144,7 @@ export default async function BlogPage({ params }: Props) {
       </div>
 
       {/* Body */}
-      <div style={{ padding: "72px 0 120px" }}>
+      <div className="blog-article-body" style={{ padding: "72px 0 120px" }}>
         <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 24px" }}>
           {/* Audio player */}
           {content.audioUrl && (

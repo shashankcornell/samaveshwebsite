@@ -28,7 +28,7 @@ export function HomeCard({ item }: { item: HomeContentItem }) {
         </p>
 
         <div
-          className="card-img-wrap"
+          className="card-img-wrap image-cinematic-matte"
           style={{
             position: "relative",
             width: "100%",
