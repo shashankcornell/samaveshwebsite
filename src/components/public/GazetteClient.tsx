@@ -174,7 +174,7 @@ export function GazetteClient({ editions, gazette, selectedSlug }: GazetteClient
         </div>
       </section>
 
-      {g && isCurrent && (
+      {g && (
         <>
           {/* ── Editor Note ── */}
           {g.editorNote && (
@@ -343,38 +343,6 @@ export function GazetteClient({ editions, gazette, selectedSlug }: GazetteClient
         </>
       )}
 
-      {/* ── Archive / non-current notice ── */}
-      {g && !isCurrent && (
-        <section className="samavesh-container" style={{ paddingTop: 80, paddingBottom: 96 }}>
-          <div className="gz-archive-box" style={{ border: "1px solid var(--ink)", padding: "72px 64px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "start" }}>
-            <div>
-              <div style={{ fontFamily: "var(--mono)", fontSize: 11, letterSpacing: "0.14em", color: "var(--ink-soft)", marginBottom: 24, textTransform: "uppercase" }}>
-                Archive Edition
-              </div>
-              <h2 style={{ fontFamily: "var(--serif)", fontSize: 48, lineHeight: 1.1, fontWeight: 400, margin: 0 }}>
-                {g.name}
-              </h2>
-            </div>
-            <div>
-              {g.description && (
-                <p style={{ fontFamily: "var(--serif)", fontSize: 19, lineHeight: 1.7, color: "var(--ink)", marginTop: 0 }}>
-                  {g.description}
-                </p>
-              )}
-              {editions.find((e) => e.isCurrent) && (
-                <button
-                  className="btn-text"
-                  style={{ marginTop: 24, display: "inline-flex" }}
-                  onClick={() => switchEdition(editions.find((e) => e.isCurrent)!.slug)}
-                >
-                  <span>Read the current edition</span>
-                  <span className="arrow">→</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
     </>
   );
 }
