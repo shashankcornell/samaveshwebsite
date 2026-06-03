@@ -3,8 +3,41 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { Reveal } from "@/components/public/Reveal";
+import { CitationBlock } from "@/components/public/CitationBlock";
 import { isomorphicDompurify } from "@/lib/sanitize";
 import type { Metadata } from "next";
+
+function buildApaCitation(content: {
+  title: string;
+  slug: string;
+  publishedAt: Date | null;
+  contributors: { role: string; profile: { name: string } }[];
+}): string {
+  const authorProfiles = content.contributors.filter((c) => c.role === "AUTHOR");
+  const formatted = authorProfiles.map((c) => {
+    const parts = c.profile.name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0];
+    const last = parts[parts.length - 1];
+    const initials = parts.slice(0, -1).map((p) => p[0].toUpperCase() + ".").join(" ");
+    return `${last}, ${initials}`;
+  });
+
+  let authorStr: string;
+  if (formatted.length === 0) authorStr = "Samavesh";
+  else if (formatted.length === 1) authorStr = formatted[0];
+  else if (formatted.length === 2) authorStr = `${formatted[0]}, & ${formatted[1]}`;
+  else authorStr = formatted.slice(0, -1).join(", ") + ", & " + formatted[formatted.length - 1];
+
+  const date = content.publishedAt;
+  const dateStr = date
+    ? `(${date.getFullYear()}, ${date.toLocaleDateString("en-US", { month: "long", day: "numeric" })})`
+    : "(n.d.)";
+
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://samavesh.in";
+  const url = `${base}/blogs/${content.slug}`;
+
+  return `${authorStr}. ${dateStr}. ${content.title}. Samavesh. ${url}`;
+}
 
 interface Props { params: { slug: string } }
 
@@ -40,6 +73,7 @@ export default async function BlogPage({ params }: Props) {
   const safeBody = isomorphicDompurify(content.body);
   const authors = content.contributors.filter((c) => c.role === "AUTHOR");
   const others = content.contributors.filter((c) => c.role !== "AUTHOR");
+  const citation = buildApaCitation(content);
 
   return (
     <article>
@@ -86,7 +120,7 @@ export default async function BlogPage({ params }: Props) {
                 fontWeight: 400,
                 color: "var(--ink)",
                 maxWidth: 1000,
-                margin: 0,
+                margin: "0 0 32px",
                 letterSpacing: "-0.01em",
               }}
             >
@@ -180,6 +214,9 @@ export default async function BlogPage({ params }: Props) {
               </Link>
             ))}
           </div>
+
+          {/* APA Citation */}
+          <CitationBlock citation={citation} />
         </div>
       </div>
 

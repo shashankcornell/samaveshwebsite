@@ -310,7 +310,7 @@ html::-webkit-scrollbar { width: 0; height: 0; display: none; }
     saturate(0.72)        /* restrained saturation, preserves skin tones */
     sepia(0.08)           /* trace warmth in highlights */
     hue-rotate(-6deg);    /* cool push — nudges reds toward cooler hues */
-  transition: filter 500ms ease;
+  transition: filter 500ms ease, transform 900ms cubic-bezier(.2,.7,.2,1);
 }
 
 /* ── Film grain — fractalNoise SVG data URI, mix: overlay ── */

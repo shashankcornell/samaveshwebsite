@@ -189,13 +189,6 @@ function FeaturedSection({ block }: { block: FeaturedBlock }) {
   );
 }
 
-const FALLBACK_IMAGES = [
-  "/topic-health.jpg",
-  "/topic-education.jpg",
-  "/topic-urbanisation.jpg",
-  "/topic-technology.jpg",
-  "/topic-national-security.jpg",
-];
 
 interface Topic {
   id: string;
@@ -234,13 +227,7 @@ export function HomeClient({ featured, gridContent, topics, gazette }: HomeClien
     contributors: item.contributors,
   }));
 
-  const topicList = topics.length > 0 ? topics : [
-    { id: "h", slug: "health", name: "Health", count: 0, image: null },
-    { id: "e", slug: "education", name: "Education", count: 0, image: null },
-    { id: "u", slug: "urbanisation", name: "Urbanisation", count: 0, image: null },
-    { id: "t", slug: "technology", name: "Technology", count: 0, image: null },
-    { id: "s", slug: "national-security", name: "National Security", count: 0, image: null },
-  ];
+  const topicList = topics;
 
   return (
     <>
@@ -330,19 +317,18 @@ export function HomeClient({ featured, gridContent, topics, gazette }: HomeClien
               background: "rgba(217,217,217,0.6)",
               overflow: "hidden",
             }}>
-              {FALLBACK_IMAGES.map((fallback, i) => {
-                const src = topicList[i]?.image ?? fallback;
-                return (
-                  <div key={i} style={{
-                    position: "absolute", inset: 0,
-                    opacity: i === activeIdx ? 1 : 0,
-                    transform: i === activeIdx ? "scale(1)" : "scale(1.04)",
-                    transition: isHovered ? "none" : "opacity 700ms ease, transform 1200ms cubic-bezier(.2,.7,.2,1)",
-                  }}>
-                    <Image src={src} alt={topicList[i]?.name ?? "Topic"} fill priority={i === 0} style={{ objectFit: "cover" }} sizes="40vw" />
-                  </div>
-                );
-              })}
+              {topicList.map((topic, i) => (
+                <div key={i} style={{
+                  position: "absolute", inset: 0,
+                  opacity: i === activeIdx ? 1 : 0,
+                  transform: i === activeIdx ? "scale(1)" : "scale(1.04)",
+                  transition: isHovered ? "none" : "opacity 700ms ease, transform 1200ms cubic-bezier(.2,.7,.2,1)",
+                }}>
+                  {topic.image && (
+                    <Image src={topic.image} alt={topic.name} fill priority={i === 0} style={{ objectFit: "cover" }} sizes="40vw" />
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         </div>

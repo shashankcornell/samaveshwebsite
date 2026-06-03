@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { Reveal } from "@/components/public/Reveal";
-import { CardMosaic } from "@/components/public/CardMosaic";
+import { ContentGrid } from "@/components/public/ContentGrid";
 import type { Metadata } from "next";
 
 interface Props { params: { slug: string } }
@@ -131,7 +131,7 @@ export default async function ProfilePage({ params }: Props) {
                 Contributions
               </p>
             </Reveal>
-            <CardMosaic items={cards} />
+            <ContentGrid items={cards} />
           </div>
         </div>
       )}
