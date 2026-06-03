@@ -41,14 +41,14 @@ export function TopicClient({ tag, items, contentTypes, otherTopics, activeType 
         {/* Full-bleed background image (from "Use image" mode) */}
         {tag.bgImage && (
           <>
-            <Image src={tag.bgImage} alt="" fill priority sizes="100vw" style={{ objectFit: "cover", objectPosition: "center" }} />
+            <Image src={tag.bgImage} alt="" fill priority sizes="100vw" style={{ objectFit: "cover", objectPosition: "center", filter: "contrast(0.88) brightness(0.94) saturate(0.72) sepia(0.08) hue-rotate(-6deg)" }} />
             <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(10,15,25,0.78) 0%, rgba(10,15,25,0.55) 60%, rgba(10,15,25,0.35) 100%)" }} />
           </>
         )}
         {/* Foreground banner image (sectorImage, portrait) — if bgImage isn't set */}
         {!tag.bgImage && !tag.bgColor && tag.bannerImage && (
           <>
-            <Image src={tag.bannerImage} alt={tag.name} fill priority sizes="100vw" style={{ objectFit: "cover", objectPosition: "center" }} />
+            <Image src={tag.bannerImage} alt={tag.name} fill priority sizes="100vw" style={{ objectFit: "cover", objectPosition: "center", filter: "contrast(0.88) brightness(0.94) saturate(0.72) sepia(0.08) hue-rotate(-6deg)" }} />
             <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(10,15,25,0.78) 0%, rgba(10,15,25,0.55) 60%, rgba(10,15,25,0.35) 100%)" }} />
           </>
         )}
@@ -57,14 +57,14 @@ export function TopicClient({ tag, items, contentTypes, otherTopics, activeType 
           <Reveal>
             <div style={{
               fontFamily: "var(--mono)", fontSize: 11, letterSpacing: "0.14em",
-              color: (tag.bgImage || tag.bannerImage) ? "rgba(255,255,255,0.55)" : "var(--ink-soft)",
+              color: (tag.bgImage || (!tag.bgColor && tag.bannerImage)) ? "rgba(255,255,255,0.55)" : "var(--ink-soft)",
               marginBottom: 12, textTransform: "uppercase",
             }}>
               Sector / Decoding policies on…
             </div>
             <h1 className="topic-hero-h1" style={{
               fontFamily: "var(--serif)", fontSize: 88, lineHeight: 1.05, fontWeight: 400,
-              color: (tag.bgImage || tag.bannerImage) ? "#ffffff" : "var(--ink)",
+              color: (tag.bgImage || (!tag.bgColor && tag.bannerImage)) ? "#ffffff" : "var(--ink)",
               margin: 0, letterSpacing: "-0.01em",
             }}>
               {tag.name}
@@ -72,7 +72,7 @@ export function TopicClient({ tag, items, contentTypes, otherTopics, activeType 
             <p className="topic-hero-desc" style={{
               fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 26, lineHeight: 1.5,
               maxWidth: 680, marginTop: 24,
-              color: (tag.bgImage || tag.bannerImage) ? "rgba(255,255,255,0.82)" : "var(--ink)",
+              color: (tag.bgImage || (!tag.bgColor && tag.bannerImage)) ? "rgba(255,255,255,0.82)" : "var(--ink)",
             }}>
               {tag.description ||
                 <>Everything we&rsquo;ve researched, debated, and published on {tag.name.toLowerCase()} — from ground-level observations to policy architecture for the sector.</>

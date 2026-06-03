@@ -17,19 +17,22 @@ export async function GET(req: Request) {
   const topicSlug = searchParams.get("topic");
   const typeSlug = searchParams.get("type");
   const page = Math.max(1, Number(searchParams.get("page") ?? 1));
-  const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit") ?? 20)));
+  const limit = Math.min(200, Math.max(1, Number(searchParams.get("limit") ?? 20)));
+  const sort = searchParams.get("sort") === "updatedAt" ? "updatedAt" : "publishedAt";
+  const search = searchParams.get("search")?.trim() ?? "";
 
   const where: Record<string, unknown> = {};
   if (status) where.status = status;
   if (topicSlug) where.topics = { some: { topicTag: { slug: topicSlug } } };
   if (typeSlug) where.contentType = { slug: typeSlug };
+  if (search) where.title = { contains: search, mode: "insensitive" };
 
   const [total, items] = await Promise.all([
     prisma.content.count({ where }),
     prisma.content.findMany({
       where,
       include: CONTENT_INCLUDE,
-      orderBy: { publishedAt: "desc" },
+      orderBy: { [sort]: "desc" },
       skip: (page - 1) * limit,
       take: limit,
     }),

@@ -6,6 +6,12 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+export async function deleteFromCloudinary(url: string): Promise<void> {
+  const match = url.match(/\/upload\/(?:v\d+\/)?(.+?)\.\w+$/);
+  if (!match) return;
+  await cloudinary.uploader.destroy(match[1]);
+}
+
 export async function uploadToCloudinary(buffer: Buffer, folder: string): Promise<string> {
   return new Promise((resolve, reject) => {
     cloudinary.uploader

@@ -50,5 +50,8 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   if (!existing) return apiError("Not found", 404);
 
   await prisma.profile.delete({ where: { id: params.id } });
-  return apiSuccess({ deleted: true });
+
+  const { cleanupImages } = await import("@/lib/deleteImage");
+  const cleanup = await cleanupImages([existing.image]);
+  return apiSuccess({ deleted: true, ...cleanup });
 }

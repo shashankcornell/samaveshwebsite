@@ -38,6 +38,12 @@ export async function DELETE(_: NextRequest, { params }: { params: { id: string 
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const item = await prisma.newsItem.findUnique({ where: { id: params.id } });
+  if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   await prisma.newsItem.delete({ where: { id: params.id } });
-  return NextResponse.json({ ok: true });
+
+  const { cleanupImages } = await import("@/lib/deleteImage");
+  const cleanup = await cleanupImages([item.image]);
+  return NextResponse.json({ ok: true, ...cleanup });
 }

@@ -23,10 +23,12 @@ interface Props {
 
 const RATIO_PRESETS = [
   { label: "Free",  ratio: undefined },
+  { label: "3.6:1", ratio: 3.6 },
   { label: "16:9",  ratio: 16 / 9 },
   { label: "21:9",  ratio: 21 / 9 },
   { label: "4:3",   ratio: 4 / 3 },
   { label: "1:1",   ratio: 1 },
+  { label: "2:3",   ratio: 2 / 3 },
   { label: "3:4",   ratio: 3 / 4 },
 ];
 
@@ -130,6 +132,14 @@ export function ImageCropModal({ src, previewRatios, onConfirm, onClose }: Props
       height,
     );
     setCrop(c);
+    // Set completedCrop immediately so the live preview renders on open
+    setCompletedCrop({
+      unit: "px",
+      x: Math.round((c.x / 100) * width),
+      y: Math.round((c.y / 100) * height),
+      width: Math.round((c.width / 100) * width),
+      height: Math.round((c.height / 100) * height),
+    });
   }
 
   const applyRatioPreset = useCallback((ratio: number | undefined) => {

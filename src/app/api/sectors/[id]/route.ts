@@ -43,11 +43,18 @@ export async function DELETE(_req: NextRequest, { params }: Props) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const sector = await prisma.topicTag.findUnique({ where: { id: params.id } });
+  if (!sector) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   const count = await prisma.contentTopicTag.count({ where: { topicTagId: params.id } });
   if (count > 0) {
     await prisma.topicTag.update({ where: { id: params.id }, data: { visible: false } });
-    return NextResponse.json({ ok: true, archived: true, message: "Sector archived (content exists)" });
+    return NextResponse.json({ ok: true, archived: true });
   }
+
   await prisma.topicTag.delete({ where: { id: params.id } });
-  return NextResponse.json({ ok: true });
+
+  const { cleanupImages } = await import("@/lib/deleteImage");
+  const cleanup = await cleanupImages([sector.image, sector.sectorImage]);
+  return NextResponse.json({ ok: true, ...cleanup });
 }
